@@ -1,7 +1,8 @@
 package com.example.smartBiz.repository;
 
+import com.example.smartBiz.entity.Products;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-
-public class ProductRepo {
+public interface ProductRepo extends JpaRepository<Products, Long> {
 
 }

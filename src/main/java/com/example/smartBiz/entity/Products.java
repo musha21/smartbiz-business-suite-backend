@@ -19,15 +19,19 @@ public class Products {
 
         private String name;
         private Double price;
-        private Integer stockQty;
-        private Integer lowStockLimit;
-        private Long businessId;
+        private Integer stock_qty;
+        private Integer low_stock_limit;
 
-        public Products(String name, Double price, Integer stockQty, Integer lowStockLimit, Long businessId) {
+        public Products(String name, Double price, Integer stock_qty, Integer low_stock_limit, Long business_id) {
                 this.name = name;
                 this.price = price;
-                this.stockQty = stockQty;
-                this.lowStockLimit = lowStockLimit;
-                this.businessId = businessId;
+                this.stock_qty = stock_qty;
+                this.low_stock_limit = low_stock_limit;
+                this.business_id = business_id;
         }
-    }
+
+        private Long  business_id ;
+
+
+
+}
