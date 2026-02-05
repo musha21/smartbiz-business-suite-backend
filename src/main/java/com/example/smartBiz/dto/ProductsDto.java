@@ -15,6 +15,7 @@ public class ProductsDto {
     private Integer stockQty;
     private Integer lowStockLimit;
     private Long businessId;// reference to business
+    private Long supplierId;
 
     public ProductsDto(String name, Double price, Integer stockQty, Integer lowStockLimit, Long businessId) {
         this.name = name;

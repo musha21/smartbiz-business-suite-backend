@@ -1,0 +1,37 @@
+package com.example.smartBiz.controller;
+
+import com.example.smartBiz.dto.InvoiceCreateRequestDto;
+import com.example.smartBiz.dto.InvoiceResponseDto;
+import com.example.smartBiz.service.InvoiceService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/v1/api/invoices")
+@CrossOrigin
+public class InvoiceController {
+
+    private final InvoiceService invoiceService;
+
+    @Autowired
+    public InvoiceController(InvoiceService invoiceService) {
+        this.invoiceService = invoiceService;
+    }
+
+
+    @PostMapping
+    public ResponseEntity<InvoiceResponseDto> createInvoice(@RequestBody InvoiceCreateRequestDto request) {
+        return ResponseEntity.ok(invoiceService.createInvoice(request));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<InvoiceResponseDto> getInvoiceById(@PathVariable Long id) {
+        return ResponseEntity.ok(invoiceService.getInvoiceById(id));
+    }
+
+    @GetMapping("/by-number/{invoiceNumber}")
+    public ResponseEntity<InvoiceResponseDto> getInvoiceByNumber(@PathVariable String invoiceNumber) {
+        return ResponseEntity.ok(invoiceService.getInvoiceByNumber(invoiceNumber));
+    }
+}
