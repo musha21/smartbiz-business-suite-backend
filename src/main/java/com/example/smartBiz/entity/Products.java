@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
@@ -13,25 +12,28 @@ import java.time.LocalDateTime;
 @Table(name = "products")
 public class Products {
 
-        @Id
-        @GeneratedValue(strategy = GenerationType.IDENTITY)
-        private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-        private String name;
-        private Double price;
-        private Integer stock_qty;
-        private Integer low_stock_limit;
+    private String name;
+    private Double price;
+    private Integer stock_qty;
+    private Integer low_stock_limit;
+    private Long business_id;
 
-        public Products(String name, Double price, Integer stock_qty, Integer low_stock_limit, Long business_id) {
-                this.name = name;
-                this.price = price;
-                this.stock_qty = stock_qty;
-                this.low_stock_limit = low_stock_limit;
-                this.business_id = business_id;
-        }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
 
-        private Long  business_id ;
+    public Products(String name, Double price, Integer stock_qty, Integer low_stock_limit, Long business_id) {
+        this.name = name;
+        this.price = price;
+        this.stock_qty = stock_qty;
+        this.low_stock_limit = low_stock_limit;
+        this.business_id = business_id;
 
+    }
 
 
 }

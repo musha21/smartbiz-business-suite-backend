@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
@@ -19,6 +21,8 @@ public class Supplier {
     private String email;
     private String phone;
     private String address;
+    @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL)
+    private List<Products> products;
 
     public Supplier(String name, String email, String phone, String address) {
         this.name = name;
@@ -27,10 +31,7 @@ public class Supplier {
         this.address = address;
     }
 
-//        @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL)
-//        private List<Product> products;
 
-    // getters and setters
 }
 
 

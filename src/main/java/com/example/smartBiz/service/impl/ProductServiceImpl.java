@@ -2,6 +2,7 @@ package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.ProductsDto;
 import com.example.smartBiz.entity.Products;
+import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.ProductRepo;
 import com.example.smartBiz.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,7 +49,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductsDto updateProduct(Long id, ProductsDto productDto) {
       // Find product by id
       Products existingProduct = productRepo.findById(id)
-              .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+              .orElseThrow(() -> new ResourceNotFoundException("Product not found with id " + id));
 
       // Update fields
       existingProduct.setName(productDto.getName());
@@ -74,7 +75,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void deleteProduct(Long id) {
       Products product = productRepo.findById(id)
-              .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+              .orElseThrow(() -> new ResourceNotFoundException("Product not found with id " + id));
       productRepo.delete(product);
 
     }
@@ -82,7 +83,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public ProductsDto getProductById(Long id) {
       Products product = productRepo.findById(id)
-              .orElseThrow(() -> new RuntimeException("Product not found with id " + id));
+              .orElseThrow(() -> new ResourceNotFoundException("Product not found with id " + id));
       return new ProductsDto(
               product.getId(),
               product.getName(),

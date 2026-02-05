@@ -3,6 +3,7 @@ package com.example.smartBiz.controller;
 import com.example.smartBiz.dto.SupplierDto;
 import com.example.smartBiz.service.SupplierService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,7 +40,14 @@ public class SupplierController {
 
     @GetMapping("/{id}")
     public ResponseEntity<SupplierDto> getSupplierById(@PathVariable Long id) {
-        return ResponseEntity.ok(supplierService.getSupplierById(id));
+        SupplierDto isFound = supplierService.getSupplierById(id);
+        if (isFound == null) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+        else  {
+            return new ResponseEntity<>(HttpStatus.ACCEPTED);
+        }
+
     }
 
     @GetMapping
