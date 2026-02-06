@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/v1/api/invoices")
 @CrossOrigin
@@ -34,4 +36,6 @@ public class InvoiceController {
     public ResponseEntity<InvoiceResponseDto> getInvoiceByNumber(@PathVariable String invoiceNumber) {
         return ResponseEntity.ok(invoiceService.getInvoiceByNumber(invoiceNumber));
     }
+
+
 }
