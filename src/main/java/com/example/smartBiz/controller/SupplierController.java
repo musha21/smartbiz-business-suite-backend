@@ -40,14 +40,8 @@ public class SupplierController {
 
     @GetMapping("/{id}")
     public ResponseEntity<SupplierDto> getSupplierById(@PathVariable Long id) {
-        SupplierDto isFound = supplierService.getSupplierById(id);
-        if (isFound == null) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        else  {
-            return new ResponseEntity<>(HttpStatus.ACCEPTED);
-        }
-
+        SupplierDto supplier = supplierService.getSupplierById(id);
+        return ResponseEntity.ok(supplier);
     }
 
     @GetMapping

@@ -1,0 +1,24 @@
+package com.example.smartBiz.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+@Entity
+@Table(name = "expenses")
+public class Expense {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private LocalDateTime expenseDate;
+
+    private String category;   // e.g. Rent, Salary, Transport
+    private Double amount;
+    private String note;       // optional description
+}

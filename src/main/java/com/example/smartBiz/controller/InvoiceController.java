@@ -2,6 +2,7 @@ package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.InvoiceCreateRequestDto;
 import com.example.smartBiz.dto.InvoiceResponseDto;
+import com.example.smartBiz.dto.InvoiceStatusUpdateDto;
 import com.example.smartBiz.service.InvoiceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,15 @@ public class InvoiceController {
     @GetMapping("/by-number/{invoiceNumber}")
     public ResponseEntity<InvoiceResponseDto> getInvoiceByNumber(@PathVariable String invoiceNumber) {
         return ResponseEntity.ok(invoiceService.getInvoiceByNumber(invoiceNumber));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<String> updateInvoiceStatus(
+            @PathVariable Long id,
+            @RequestBody InvoiceStatusUpdateDto dto
+    ) {
+        invoiceService.updateInvoiceStatus(id, dto);
+        return ResponseEntity.ok("Invoice status updated successfully");
     }
 
 

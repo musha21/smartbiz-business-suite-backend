@@ -1,9 +1,6 @@
 package com.example.smartBiz.service.impl;
 
-import com.example.smartBiz.dto.InvoiceCreateRequestDto;
-import com.example.smartBiz.dto.InvoiceItemRequestDto;
-import com.example.smartBiz.dto.InvoiceItemResponseDto;
-import com.example.smartBiz.dto.InvoiceResponseDto;
+import com.example.smartBiz.dto.*;
 import com.example.smartBiz.entity.Customer;
 import com.example.smartBiz.entity.Invoice;
 import com.example.smartBiz.entity.InvoiceItem;
@@ -101,6 +98,28 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
         return mapToResponse(invoice);
     }
+
+    @Override
+    public void updateInvoiceStatus(Long id, InvoiceStatusUpdateDto invoiceStatus) {
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
+
+        if (invoiceStatus.getStatus() == null || invoiceStatus.getStatus().isBlank()) {
+            throw new ResourceNotFoundException("Status is required");
+        }
+
+        InvoiceStatus newStatus;
+        try {
+            newStatus = InvoiceStatus.valueOf(invoiceStatus.getStatus().toUpperCase()); // paid -> PAID
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status. Use PAID or UNPAID");
+        }
+
+        invoice.setStatus(newStatus);
+        invoiceRepository.save(invoice);
+    }
+
+
 
     private String generateInvoiceNumber() {
         return "INV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();

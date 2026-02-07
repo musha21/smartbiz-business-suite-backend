@@ -11,7 +11,8 @@ import java.util.Optional;
 
 public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
     Optional<Invoice> findByInvoiceNumber(String invoiceNumber);
-//List all invoices
+
+    //List all invoices
     @Query("""
                 SELECT i FROM Invoice i
                 WHERE (:status IS NULL OR i.status = :status)
@@ -33,5 +34,24 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
                 ORDER BY i.invoiceDate DESC
             """)
     List<Invoice> filterInvoicesByCustomer(Long customerId, InvoiceStatus status, LocalDateTime from, LocalDateTime to, String q);
+
+    Long countByStatus(InvoiceStatus status);
+
+    @Query("""
+                SELECT COALESCE(SUM(i.totalAmount), 0)
+                FROM Invoice i
+                WHERE i.status = :status
+                  AND i.invoiceDate BETWEEN :start AND :end
+            """)
+    Double sumTotalAmountByStatusAndDateRange(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
+    @Query("""
+  SELECT i FROM Invoice i
+  LEFT JOIN FETCH i.items it
+  LEFT JOIN FETCH it.product
+  LEFT JOIN FETCH i.customer
+  WHERE i.id = :id
+""")
+    Optional<Invoice> findInvoiceForPdf(Long id);
+
 }
 
