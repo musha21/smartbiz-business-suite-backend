@@ -36,4 +36,23 @@ public class InvoicePdfController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+    // GET /v1/api/invoices/{id}/pdf/preview
+    @GetMapping("/{id}/pdf/preview")
+    public ResponseEntity<byte[]> previewInvoicePdf(@PathVariable Long id) {
+
+        byte[] pdfBytes = invoicePdfService.generateInvoicePdf(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(
+                ContentDisposition.inline()
+                        .filename("invoice-" + id + ".pdf")
+                        .build()
+        );
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
 }
