@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
+    List<Invoice> findByBusinessId(Long businessId);
+
     Optional<Invoice> findByInvoiceNumber(String invoiceNumber);
 
     //List all invoices
@@ -76,6 +78,12 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
                   AND i.invoiceDate BETWEEN :start AND :end
             """)
     Double sumTotalByStatusBetween(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
+
+    Optional<Invoice> findByInvoiceNumberAndBusinessId(String invoiceNumber, Long businessId);
+
+
+    List<Invoice> findByBusinessIdAndCustomerId(Long businessId, Long customerId);
+
 
 }
 

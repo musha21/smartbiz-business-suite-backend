@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 
 public interface ProductRepo extends JpaRepository<Products, Long> {
+    List<Products> findByBusinessId(Long businessId);
+
 
 
     @Query("SELECT COUNT(product) FROM Products product WHERE product.stock_qty <= product.low_stock_limit")

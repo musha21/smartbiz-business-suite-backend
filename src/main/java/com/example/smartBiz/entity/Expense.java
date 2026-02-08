@@ -20,5 +20,8 @@ public class Expense {
 
     private String category;   // e.g. Rent, Salary, Transport
     private Double amount;
-    private String note;       // optional description
+    private String note;
+    // optional description
+    @Column(nullable = false)
+    private Long businessId;
 }

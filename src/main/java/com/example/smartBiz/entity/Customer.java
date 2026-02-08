@@ -21,6 +21,8 @@ public class Customer {
     private String email;
     private String phone;
     private String address;
+    @Column(nullable = false)
+    private Long businessId;
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Sale> sales;
 

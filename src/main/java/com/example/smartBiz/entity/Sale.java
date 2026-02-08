@@ -32,5 +32,7 @@ public class Sale {
     @JoinColumn(name = "product_id", nullable = false)
     private Products product;
 
+    @Column(nullable = false)
+    private Long businessId;
 
 }

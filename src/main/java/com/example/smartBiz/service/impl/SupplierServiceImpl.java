@@ -4,59 +4,40 @@ import com.example.smartBiz.dto.SupplierDto;
 import com.example.smartBiz.entity.Supplier;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.SupplierRepo;
+import com.example.smartBiz.security.RequestContext;
 import com.example.smartBiz.service.SupplierService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepo supplierRepository;
+    private final RequestContext requestContext;
 
-   @Autowired
-    public SupplierServiceImpl(SupplierRepo supplierRepository) {
+    public SupplierServiceImpl(SupplierRepo supplierRepository, RequestContext requestContext) {
         this.supplierRepository = supplierRepository;
+        this.requestContext = requestContext;
     }
 
-    @Override
-    public SupplierDto createSupplier(SupplierDto dto) {
-        Supplier supplier = mapToEntity(dto);
-        return mapToDto(supplierRepository.save(supplier));
+    // ✅ reduce duplicates
+    private Long requireBusinessId() {
+        Long businessId = requestContext.getBusinessId();
+        if (businessId == null) {
+            throw new RuntimeException("Business context missing (JWT required)");
+        }
+        return businessId;
     }
 
-    @Override
-    public SupplierDto updateSupplier(Long id, SupplierDto dto) {
-        Supplier supplier = supplierRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found"));
+    private Supplier requireOwnedSupplier(Long id, Long businessId) {
+        Supplier s = supplierRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id " + id));
 
-        supplier.setName(dto.getName());
-        supplier.setEmail(dto.getEmail());
-        supplier.setPhone(dto.getPhone());
-        supplier.setAddress(dto.getAddress());
-
-        return mapToDto(supplierRepository.save(supplier));
-    }
-
-    @Override
-    public void deleteSupplier(Long id) {
-        supplierRepository.deleteById(id);
-    }
-
-    @Override
-    public SupplierDto getSupplierById(Long id) {
-        return mapToDto(supplierRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found")));
-    }
-
-    @Override
-    public List<SupplierDto> getAllSuppliers() {
-        return supplierRepository.findAll()
-                .stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
+        if (s.getBusinessId() == null || !s.getBusinessId().equals(businessId)) {
+            throw new RuntimeException("Access denied: supplier not in your business");
+        }
+        return s;
     }
 
     private Supplier mapToEntity(SupplierDto dto) {
@@ -78,4 +59,50 @@ public class SupplierServiceImpl implements SupplierService {
         return dto;
     }
 
+    @Override
+    public SupplierDto createSupplier(SupplierDto dto) {
+        Long businessId = requireBusinessId();
+
+        Supplier supplier = mapToEntity(dto);
+        supplier.setBusinessId(businessId);
+
+        return mapToDto(supplierRepository.save(supplier));
+    }
+
+    @Override
+    public SupplierDto updateSupplier(Long id, SupplierDto dto) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+
+        supplier.setName(dto.getName());
+        supplier.setEmail(dto.getEmail());
+        supplier.setPhone(dto.getPhone());
+        supplier.setAddress(dto.getAddress());
+
+        return mapToDto(supplierRepository.save(supplier));
+    }
+
+    @Override
+    public void deleteSupplier(Long id) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+        supplierRepository.delete(supplier);
+    }
+
+    @Override
+    public SupplierDto getSupplierById(Long id) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+        return mapToDto(supplier);
+    }
+
+    @Override
+    public List<SupplierDto> getAllSuppliers() {
+        Long businessId = requireBusinessId();
+
+        return supplierRepository.findByBusinessId(businessId)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+    }
 }

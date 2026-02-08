@@ -23,6 +23,8 @@ public class Supplier {
     private String address;
     @OneToMany(mappedBy = "supplier", cascade = CascadeType.ALL)
     private List<Products> products;
+    @Column(nullable = false)
+    private Long businessId;
 
     public Supplier(String name, String email, String phone, String address) {
         this.name = name;

@@ -20,18 +20,19 @@ public class Products {
     private Double price;
     private Integer stock_qty;
     private Integer low_stock_limit;
-    private Long business_id;
+    @Column(name = "business_id", nullable = false)
+    private Long businessId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
 
-    public Products(String name, Double price, Integer stock_qty, Integer low_stock_limit, Long business_id) {
+    public Products(String name, Double price, Integer stock_qty, Integer low_stock_limit, Long businessId) {
         this.name = name;
         this.price = price;
         this.stock_qty = stock_qty;
         this.low_stock_limit = low_stock_limit;
-        this.business_id = business_id;
+        this.businessId = businessId;
 
     }
 
