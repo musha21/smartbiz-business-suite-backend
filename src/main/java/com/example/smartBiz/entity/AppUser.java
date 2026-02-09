@@ -1,11 +1,17 @@
 package com.example.smartBiz.entity;
 
+import com.example.smartBiz.entity.Business;
+import com.example.smartBiz.enums.Role;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@AllArgsConstructor @NoArgsConstructor @Data
 @Entity
 @Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class AppUser {
 
     @Id
@@ -18,7 +24,12 @@ public class AppUser {
     @Column(nullable = false)
     private String password;
 
-    private String role; // OWNER / ADMIN (simple)
+    @Column(nullable = false)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "business_id", nullable = false)

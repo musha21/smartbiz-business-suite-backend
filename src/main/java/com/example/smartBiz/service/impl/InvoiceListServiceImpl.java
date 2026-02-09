@@ -2,47 +2,73 @@ package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.InvoiceListDto;
 import com.example.smartBiz.entity.Invoice;
-
 import com.example.smartBiz.enums.InvoiceStatus;
+import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.InvoiceRepo;
+import com.example.smartBiz.security.RequestContext;
 import com.example.smartBiz.service.InvoiceListService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class InvoiceListServiceImpl implements InvoiceListService {
 
     private final InvoiceRepo invoiceRepository;
+    private final RequestContext requestContext;
 
-    @Autowired
-    public InvoiceListServiceImpl(InvoiceRepo invoiceRepository) {
+    public InvoiceListServiceImpl(InvoiceRepo invoiceRepository, RequestContext requestContext) {
         this.invoiceRepository = invoiceRepository;
+        this.requestContext = requestContext;
     }
-
 
     @Override
     public List<InvoiceListDto> getAllInvoices(String status, LocalDateTime from, LocalDateTime to, String q) {
-        InvoiceStatus st = parseStatus(status);
-        return invoiceRepository.filterInvoices(st, from, to, q)
-                .stream().map(this::toDto)
-                .collect(Collectors.toList());
+
+        Long businessId = requestContext.getBusinessId();
+        if (businessId == null) {
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
+        }
+
+        InvoiceStatus st = parseStatusSafe(status);
+
+        return invoiceRepository.filterInvoices(businessId, st, from, to, normalizeQuery(q))
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
     @Override
     public List<InvoiceListDto> getInvoicesByCustomer(Long customerId, String status, LocalDateTime from, LocalDateTime to, String q) {
-        InvoiceStatus st = parseStatus(status);
-        return invoiceRepository.filterInvoicesByCustomer(customerId, st, from, to, q)
-                .stream().map(this::toDto)
-                .collect(Collectors.toList());
+
+        Long businessId = requestContext.getBusinessId();
+        if (businessId == null) {
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
+        }
+
+        InvoiceStatus st = parseStatusSafe(status);
+
+        return invoiceRepository.filterInvoicesByCustomer(businessId, customerId, st, from, to, normalizeQuery(q))
+                .stream()
+                .map(this::toDto)
+                .toList();
     }
 
-    private InvoiceStatus parseStatus(String status) {
+    private String normalizeQuery(String q) {
+        if (q == null) return null;
+        String trimmed = q.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private InvoiceStatus parseStatusSafe(String status) {
         if (status == null || status.isBlank()) return null;
-        return InvoiceStatus.valueOf(status.toUpperCase()); // "paid" -> PAID
+        try {
+            return InvoiceStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            // invalid status -> ignore filter instead of crashing
+            return null;
+        }
     }
 
     private InvoiceListDto toDto(Invoice inv) {

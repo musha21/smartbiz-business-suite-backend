@@ -56,7 +56,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found"));
 
         if (c.getBusinessId() == null || !c.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: customer not in your business");
+            throw new ResourceNotFoundException("Access denied: customer not in your business");
         }
         return c;
     }
@@ -67,7 +67,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         // Your Products entity uses business_id
         if (p.getBusinessId() == null || !p.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: product not in your business");
+            throw new ResourceNotFoundException("Access denied: product not in your business");
         }
         return p;
     }
@@ -77,7 +77,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
 
         if (inv.getBusinessId() == null || !inv.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: invoice not in your business");
+            throw new ResourceNotFoundException("Access denied: invoice not in your business");
         }
         return inv;
     }
@@ -115,7 +115,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             int qty = itemReq.getQuantity();
             if (currentStock < qty) {
-                throw new RuntimeException("Insufficient stock for product: " + product.getName());
+                throw new ResourceNotFoundException("Insufficient stock for product: " + product.getName());
             }
 
             // reduce stock safely
@@ -184,45 +184,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         try {
             newStatus = InvoiceStatus.valueOf(invoiceStatus.getStatus().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid status. Use PAID or UNPAID");
+            throw new ResourceNotFoundException("Invalid status. Use PAID or UNPAID");
         }
 
         invoice.setStatus(newStatus);
         invoiceRepository.save(invoice);
     }
 
-//    // -------------------------
-//    // LIST INVOICES (BUSINESS)
-//    // -------------------------
-//    @Override
-//    public List<InvoiceResponseDto> getAllInvoices() {
-//        Long businessId = requireBusinessId();
-//
-//        return invoiceRepository.findByBusinessId(businessId)
-//                .stream()
-//                .map(this::mapToResponse)
-//                .toList();
-//    }
 
-    // -------------------------
-    // LIST INVOICES (BY CUSTOMER)
-    // -------------------------
-//    @Override
-//    public List<InvoiceResponseDto> getInvoicesByCustomer(Long customerId) {
-//        Long businessId = requireBusinessId();
-//
-//        // optional: ensure customer belongs to business
-//        requireOwnedCustomer(customerId, businessId);
-//
-//        return invoiceRepository.findByBusinessIdAndCustomerId(businessId, customerId)
-//                .stream()
-//                .map(this::mapToResponse)
-//                .toList();
-//    }
-
-    // -------------------------
-    // MAPPING
-    // -------------------------
     private InvoiceResponseDto mapToResponse(Invoice invoice) {
         InvoiceResponseDto dto = new InvoiceResponseDto();
         dto.setId(invoice.getId());

@@ -4,13 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-public class SaleDto {
-    private Long customerId;
-    private Long productId;
-    private Integer quantity;
+public class BusinessAdminDto {
+    private Long id;
+    private String name;
+    private Boolean active;
 
 
 }

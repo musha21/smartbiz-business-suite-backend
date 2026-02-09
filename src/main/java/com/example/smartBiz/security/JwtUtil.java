@@ -3,66 +3,60 @@ package com.example.smartBiz.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
-import java.util.Map;
 
-@Service
+@Component
 public class JwtUtil {
 
-    private final Key key;
-    private final long expirationMs;
+    @Value("${app.jwt.secret}")
+    private String secret;
 
-    public JwtUtil(
-            @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-ms}") long expirationMs
-    ) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes());
-        this.expirationMs = expirationMs;
+    @Value("${app.jwt.expirationMs}")
+    private long expirationMs;
+
+    private Key key() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String email, Long userId, Long businessId, String role) {
+    public String generateToken(Long userId, Long businessId, String role) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(String.valueOf(userId))
+                .claim("userId", userId)
+                .claim("businessId", businessId) // can be null for ADMIN
+                .claim("role", role)             // OWNER / ADMIN
                 .setIssuedAt(now)
                 .setExpiration(exp)
-                .addClaims(Map.of(
-                        "userId", userId,
-                        "businessId", businessId,
-                        "role", role
-                ))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(key(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public Claims parseClaims(String token) {
+    public Claims getAllClaims(String token) {
         return Jwts.parserBuilder()
-                .setSigningKey(key)
+                .setSigningKey(key())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
     }
 
-    public String getEmail(String token) {
-        return parseClaims(token).getSubject();
+    public Long getUserId(String token) {
+        Object v = getAllClaims(token).get("userId");
+        return v == null ? null : ((Number) v).longValue();
     }
 
     public Long getBusinessId(String token) {
-        Object v = parseClaims(token).get("businessId");
-        return v == null ? null : Long.valueOf(String.valueOf(v));
+        Object v = getAllClaims(token).get("businessId");
+        return v == null ? null : ((Number) v).longValue();
     }
 
-    public boolean isValid(String token) {
-        try {
-            parseClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
+    public String getRole(String token) {
+        Object v = getAllClaims(token).get("role");
+        return v == null ? null : v.toString();
     }
 }

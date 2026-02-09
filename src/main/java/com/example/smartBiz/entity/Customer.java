@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+
 
 
 @AllArgsConstructor
@@ -23,8 +23,7 @@ public class Customer {
     private String address;
     @Column(nullable = false)
     private Long businessId;
-    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Sale> sales;
+
 
     public Customer(String name, String email, String phone, String address) {
         this.name = name;

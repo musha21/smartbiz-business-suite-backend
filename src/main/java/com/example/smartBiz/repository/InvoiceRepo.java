@@ -11,32 +11,41 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
-    List<Invoice> findByBusinessId(Long businessId);
 
-    Optional<Invoice> findByInvoiceNumber(String invoiceNumber);
 
-    //List all invoices
+    // ✅ List all invoices (BUSINESS SAFE)
     @Query("""
                 SELECT i FROM Invoice i
-                WHERE (:status IS NULL OR i.status = :status)
-                  AND (:from IS NULL OR i.invoiceDate >= :from)
-                  AND (:to IS NULL OR i.invoiceDate <= :to)
-                  AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
-                ORDER BY i.invoiceDate DESC
-            """)
-    List<Invoice> filterInvoices(InvoiceStatus status, LocalDateTime from, LocalDateTime to, String q);
-
-    // ✅ filter invoices by customer
-    @Query("""
-                SELECT i FROM Invoice i
-                WHERE i.customer.id = :customerId
+                WHERE i.businessId = :businessId
                   AND (:status IS NULL OR i.status = :status)
                   AND (:from IS NULL OR i.invoiceDate >= :from)
                   AND (:to IS NULL OR i.invoiceDate <= :to)
                   AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
                 ORDER BY i.invoiceDate DESC
             """)
-    List<Invoice> filterInvoicesByCustomer(Long customerId, InvoiceStatus status, LocalDateTime from, LocalDateTime to, String q);
+    List<Invoice> filterInvoices(Long businessId,
+                                 InvoiceStatus status,
+                                 LocalDateTime from,
+                                 LocalDateTime to,
+                                 String q);
+
+    // ✅ Filter invoices by customer (BUSINESS SAFE)
+    @Query("""
+                SELECT i FROM Invoice i
+                WHERE i.businessId = :businessId
+                  AND i.customer.id = :customerId
+                  AND (:status IS NULL OR i.status = :status)
+                  AND (:from IS NULL OR i.invoiceDate >= :from)
+                  AND (:to IS NULL OR i.invoiceDate <= :to)
+                  AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
+                ORDER BY i.invoiceDate DESC
+            """)
+    List<Invoice> filterInvoicesByCustomer(Long businessId,
+                                           Long customerId,
+                                           InvoiceStatus status,
+                                           LocalDateTime from,
+                                           LocalDateTime to,
+                                           String q);
 
     Long countByStatus(InvoiceStatus status);
 
@@ -80,9 +89,6 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
     Double sumTotalByStatusBetween(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
 
     Optional<Invoice> findByInvoiceNumberAndBusinessId(String invoiceNumber, Long businessId);
-
-
-    List<Invoice> findByBusinessIdAndCustomerId(Long businessId, Long customerId);
 
 
 }
