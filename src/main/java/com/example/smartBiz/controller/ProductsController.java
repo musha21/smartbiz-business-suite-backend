@@ -2,7 +2,6 @@ package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.ProductsDto;
 import com.example.smartBiz.service.ProductService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,48 +9,56 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/v1/api/products")
+@CrossOrigin
 public class ProductsController {
-    private ProductService productService;
 
-    @Autowired
+    private final ProductService productService;
+
     public ProductsController(ProductService productService) {
         this.productService = productService;
     }
 
-
     @PostMapping
-    public ResponseEntity<ProductsDto> createProduct(@RequestBody ProductsDto productDto) {
-        ProductsDto createdProduct = productService.createProduct(productDto);
-        return ResponseEntity.ok(createdProduct);
+    public ResponseEntity<ProductsDto> create(@RequestBody ProductsDto dto) {
+        return ResponseEntity.ok(productService.createProduct(dto));
     }
 
-    // Update an existing product
     @PutMapping("/{id}")
-    public ResponseEntity<ProductsDto> updateProduct(@PathVariable Long id, @RequestBody ProductsDto productDto) {
-        ProductsDto updatedProduct = productService.updateProduct(id, productDto);
-        return ResponseEntity.ok(updatedProduct);
+    public ResponseEntity<ProductsDto> update(@PathVariable Long id, @RequestBody ProductsDto dto) {
+        return ResponseEntity.ok(productService.updateProduct(id, dto));
     }
 
-    // Delete a product
+    // ✅ delete = archive
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
 
-    // Get a product by ID
     @GetMapping("/{id}")
-    public ResponseEntity<ProductsDto> getProductById(@PathVariable Long id) {
-        ProductsDto product = productService.getProductById(id);
-        return ResponseEntity.ok(product);
+    public ResponseEntity<ProductsDto> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(productService.getProductById(id));
     }
 
-    // Get all products
     @GetMapping
-    public ResponseEntity<List<ProductsDto>> getAllProducts() {
-        List<ProductsDto> products = productService.getAllProducts();
-        return ResponseEntity.ok(products);
+    public ResponseEntity<List<ProductsDto>> getAll() {
+        return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    // ✅ soft delete endpoints
+    @PatchMapping("/{id}/archive")
+    public ResponseEntity<Void> archive(@PathVariable Long id) {
+        productService.archiveProduct(id);
+        return ResponseEntity.noContent().build();
+    }
 
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<Void> restore(@PathVariable Long id) {
+        productService.restoreProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+    @GetMapping("/archived")
+    public ResponseEntity<List<ProductsDto>> getArchived() {
+        return ResponseEntity.ok(productService.getArchivedProducts());
+    }
 }

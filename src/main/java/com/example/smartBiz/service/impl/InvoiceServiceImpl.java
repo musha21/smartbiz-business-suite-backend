@@ -1,15 +1,10 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.*;
-import com.example.smartBiz.entity.Customer;
-import com.example.smartBiz.entity.Invoice;
-import com.example.smartBiz.entity.InvoiceItem;
-import com.example.smartBiz.entity.Products;
+import com.example.smartBiz.entity.*;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
-import com.example.smartBiz.repository.CustomerRepo;
-import com.example.smartBiz.repository.InvoiceRepo;
-import com.example.smartBiz.repository.ProductRepo;
+import com.example.smartBiz.repository.*;
 import com.example.smartBiz.security.RequestContext;
 import com.example.smartBiz.service.InvoiceService;
 import org.springframework.stereotype.Service;
@@ -26,28 +21,26 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final InvoiceRepo invoiceRepository;
     private final CustomerRepo customerRepository;
     private final ProductRepo productRepo;
+    private final ProductBatchRepo batchRepo;
     private final RequestContext requestContext;
 
     public InvoiceServiceImpl(
             InvoiceRepo invoiceRepository,
             CustomerRepo customerRepository,
             ProductRepo productRepo,
+            ProductBatchRepo batchRepo,
             RequestContext requestContext
     ) {
         this.invoiceRepository = invoiceRepository;
         this.customerRepository = customerRepository;
         this.productRepo = productRepo;
+        this.batchRepo = batchRepo;
         this.requestContext = requestContext;
     }
 
-    // -------------------------
-    // Helpers (reduce duplicate)
-    // -------------------------
     private Long requireBusinessId() {
         Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
-        }
+        if (businessId == null) throw new RuntimeException("Business context missing (JWT required)");
         return businessId;
     }
 
@@ -65,15 +58,27 @@ public class InvoiceServiceImpl implements InvoiceService {
         Products p = productRepo.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
 
-        // Your Products entity uses business_id
         if (p.getBusinessId() == null || !p.getBusinessId().equals(businessId)) {
             throw new ResourceNotFoundException("Access denied: product not in your business");
         }
         return p;
     }
 
+    private ProductBatch requireOwnedBatch(Long batchId, Long businessId, Long expectedProductId) {
+        ProductBatch batch = batchRepo.findByIdAndBusinessId(batchId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
+
+        if (batch.getProduct() == null || batch.getProduct().getId() == null) {
+            throw new ResourceNotFoundException("Batch product missing");
+        }
+        if (!batch.getProduct().getId().equals(expectedProductId)) {
+            throw new ResourceNotFoundException("Batch does not belong to the selected product");
+        }
+        return batch;
+    }
+
     private Invoice requireOwnedInvoice(Long invoiceId, Long businessId) {
-        Invoice inv = invoiceRepository.findById(invoiceId)
+        Invoice inv = invoiceRepository.findInvoiceWithItems(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
 
         if (inv.getBusinessId() == null || !inv.getBusinessId().equals(businessId)) {
@@ -86,14 +91,25 @@ public class InvoiceServiceImpl implements InvoiceService {
         return "INV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
-    // -------------------------
-    // CREATE INVOICE
-    // -------------------------
+    // ✅ Keep Products.stock_qty synced with batches (MVP friendly)
+    private void syncProductStockFromBatches(Products product, Long businessId) {
+        int sum = batchRepo.findByBusinessIdAndProduct_IdOrderByCreatedAtDesc(businessId, product.getId())
+                .stream()
+                .map(b -> b.getQtyAvailable() == null ? 0 : b.getQtyAvailable())
+                .reduce(0, Integer::sum);
+
+        product.setStock_qty(sum);
+        productRepo.save(product);
+    }
+
     @Override
     @Transactional
     public InvoiceResponseDto createInvoice(InvoiceCreateRequestDto request) {
 
         Long businessId = requireBusinessId();
+
+        if (request.getCustomerId() == null) throw new ResourceNotFoundException("customerId is required");
+        if (request.getItems() == null || request.getItems().isEmpty()) throw new ResourceNotFoundException("items are required");
 
         Customer customer = requireOwnedCustomer(request.getCustomerId(), businessId);
 
@@ -108,32 +124,39 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (InvoiceItemRequestDto itemReq : request.getItems()) {
 
-            Products product = requireOwnedProduct(itemReq.getProductId(), businessId);
+            if (itemReq.getProductId() == null) throw new ResourceNotFoundException("productId is required in items");
+            if (itemReq.getBatchId() == null) throw new ResourceNotFoundException("batchId is required in items");
+            if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0) throw new ResourceNotFoundException("quantity must be > 0");
 
-            Integer currentStock = product.getStock_qty();
-            if (currentStock == null) currentStock = 0;
+            Products product = requireOwnedProduct(itemReq.getProductId(), businessId);
+            ProductBatch batch = requireOwnedBatch(itemReq.getBatchId(), businessId, product.getId());
 
             int qty = itemReq.getQuantity();
-            if (currentStock < qty) {
-                throw new ResourceNotFoundException("Insufficient stock for product: " + product.getName());
+            int batchQty = batch.getQtyAvailable() == null ? 0 : batch.getQtyAvailable();
+
+            if (batchQty < qty) {
+                throw new ResourceNotFoundException("Insufficient batch stock. Batch: " + batch.getBatchNumber());
             }
 
-            // reduce stock safely
-            product.setStock_qty(currentStock - qty);
-            productRepo.save(product);
+            // ✅ reduce batch stock (source of truth)
+            batch.setQtyAvailable(batchQty - qty);
+            batchRepo.save(batch);
 
-            double unitPrice = product.getPrice();
+            // ✅ keep product.stock_qty correct (sum of batches)
+            syncProductStockFromBatches(product, businessId);
+
+            double unitPrice = product.getPrice() == null ? 0.0 : product.getPrice();
             double lineTotal = unitPrice * qty;
             grandTotal += lineTotal;
 
             InvoiceItem invoiceItem = new InvoiceItem();
             invoiceItem.setInvoice(invoice);
             invoiceItem.setProduct(product);
+            invoiceItem.setBatch(batch);
             invoiceItem.setQuantity(qty);
             invoiceItem.setUnitPrice(unitPrice);
             invoiceItem.setLineTotal(lineTotal);
 
-            // make sure Invoice has items initialized (List)
             invoice.getItems().add(invoiceItem);
         }
 
@@ -143,9 +166,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return mapToResponse(saved);
     }
 
-    // -------------------------
-    // GET INVOICE (BY ID)
-    // -------------------------
     @Override
     public InvoiceResponseDto getInvoiceById(Long id) {
         Long businessId = requireBusinessId();
@@ -153,9 +173,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return mapToResponse(invoice);
     }
 
-    // -------------------------
-    // GET INVOICE (BY NUMBER)
-    // -------------------------
     @Override
     public InvoiceResponseDto getInvoiceByNumber(String invoiceNumber) {
         Long businessId = requireBusinessId();
@@ -167,12 +184,8 @@ public class InvoiceServiceImpl implements InvoiceService {
         return mapToResponse(invoice);
     }
 
-    // -------------------------
-    // UPDATE STATUS (PAID/UNPAID)
-    // -------------------------
     @Override
     public void updateInvoiceStatus(Long id, InvoiceStatusUpdateDto invoiceStatus) {
-
         Long businessId = requireBusinessId();
         Invoice invoice = requireOwnedInvoice(id, businessId);
 
@@ -191,13 +204,12 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoiceRepository.save(invoice);
     }
 
-
     private InvoiceResponseDto mapToResponse(Invoice invoice) {
         InvoiceResponseDto dto = new InvoiceResponseDto();
         dto.setId(invoice.getId());
         dto.setInvoiceNumber(invoice.getInvoiceNumber());
         dto.setInvoiceDate(invoice.getInvoiceDate());
-        dto.setStatus(invoice.getStatus().name());
+        dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
         dto.setTotalAmount(invoice.getTotalAmount());
 
         dto.setCustomerId(invoice.getCustomer().getId());
@@ -207,6 +219,12 @@ public class InvoiceServiceImpl implements InvoiceService {
             InvoiceItemResponseDto i = new InvoiceItemResponseDto();
             i.setProductId(it.getProduct().getId());
             i.setProductName(it.getProduct().getName());
+
+            if (it.getBatch() != null) {
+                i.setBatchId(it.getBatch().getId());
+                i.setBatchNumber(it.getBatch().getBatchNumber());
+            }
+
             i.setQuantity(it.getQuantity());
             i.setUnitPrice(it.getUnitPrice());
             i.setLineTotal(it.getLineTotal());

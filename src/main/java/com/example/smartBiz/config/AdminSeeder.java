@@ -24,7 +24,7 @@ public class AdminSeeder {
         return args -> {
 
             // ✅ If admin already exists, do nothing
-            if (userRepo.existsByEmail("admin@smartbiz.com")) {
+            if (userRepo.existsByEmail("admin123@gmail.com")) {
                 return;
             }
 
@@ -38,7 +38,7 @@ public class AdminSeeder {
 
             // ✅ Create ADMIN user
             AppUser admin = new AppUser();
-            admin.setEmail("admin@smartbiz.com");
+            admin.setEmail("admin123@gmail.com");
             admin.setPassword(encoder.encode("admin123"));
             admin.setRole(Role.ADMIN);
             admin.setBusiness(systemBusiness); // NOT NULL ✔

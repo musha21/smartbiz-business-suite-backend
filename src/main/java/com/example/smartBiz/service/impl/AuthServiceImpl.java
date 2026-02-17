@@ -1,6 +1,8 @@
 package com.example.smartBiz.service.impl;
 
-import com.example.smartBiz.dto.*;
+import com.example.smartBiz.dto.AuthResponseDto;
+import com.example.smartBiz.dto.LoginRequestDto;
+import com.example.smartBiz.dto.RegisterRequestDto;
 import com.example.smartBiz.entity.AppUser;
 import com.example.smartBiz.entity.Business;
 import com.example.smartBiz.enums.Role;
@@ -30,33 +32,43 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponseDto register(RegisterRequestDto req) {
 
+        if (req.getName() == null || req.getName().isBlank()) {
+            throw new ResourceNotFoundException("NAME_REQUIRED");
+        }
+
+        if (req.getEmail() == null || req.getEmail().isBlank()) {
+            throw new ResourceNotFoundException("EMAIL_REQUIRED");
+        }
+
+        if (req.getPassword() == null || req.getPassword().isBlank()) {
+            throw new ResourceNotFoundException("PASSWORD_REQUIRED");
+        }
+
         if (userRepo.existsByEmail(req.getEmail())) {
             throw new ResourceNotFoundException("EMAIL_ALREADY_EXISTS");
         }
 
         if (req.getBusinessName() == null || req.getBusinessName().isBlank()) {
-            throw new ResourceNotFoundException("Business name is required");
+            throw new ResourceNotFoundException("BUSINESS_NAME_REQUIRED");
         }
 
-        // ✅ 1) Create Business properly
+        // 1) Create business
         Business business = new Business();
-        business.setName(req.getBusinessName());
+        business.setName(req.getBusinessName().trim());
         business.setActive(true);
         Business savedBusiness = businessRepo.save(business);
-        if (req.getName() == null || req.getName().isBlank()) {
-            throw new ResourceNotFoundException("NAME_REQUIRED");
-        }
-        // ✅ 2) Create OWNER user linked to business
+
+        // 2) Create owner user and link business
         AppUser user = new AppUser();
-        user.setName(req.getName());
-        user.setEmail(req.getEmail());
+        user.setName(req.getName().trim());
+        user.setEmail(req.getEmail().trim().toLowerCase());
         user.setPassword(encoder.encode(req.getPassword()));
         user.setRole(Role.OWNER);
         user.setBusiness(savedBusiness);
 
         AppUser savedUser = userRepo.save(user);
 
-        // ✅ 3) Token contains: userId, businessId, role
+        // 3) Generate token
         String token = jwtUtil.generateToken(
                 savedUser.getId(),
                 savedBusiness.getId(),
@@ -74,22 +86,30 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponseDto login(LoginRequestDto req) {
 
-        AppUser user = userRepo.findByEmail(req.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid email or password"));
-
-        if (!encoder.matches(req.getPassword(), user.getPassword())) {
-            throw new ResourceNotFoundException("Invalid email or password");
+        if (req.getEmail() == null || req.getEmail().isBlank()) {
+            throw new ResourceNotFoundException("EMAIL_REQUIRED");
         }
 
-        // ✅ Block disabled business users (OWNER / STAFF)
+        if (req.getPassword() == null || req.getPassword().isBlank()) {
+            throw new ResourceNotFoundException("PASSWORD_REQUIRED");
+        }
+
+        AppUser user = userRepo.findByEmail(req.getEmail().trim().toLowerCase())
+                .orElseThrow(() -> new ResourceNotFoundException("INVALID_CREDENTIALS"));
+
+        if (!encoder.matches(req.getPassword(), user.getPassword())) {
+            throw new ResourceNotFoundException("INVALID_CREDENTIALS");
+        }
+
+        // Block disabled business users (OWNER / STAFF)
         if (user.getRole() != Role.ADMIN) {
 
             if (user.getBusiness() == null) {
-                throw new ResourceNotFoundException("Business missing for this user");
+                throw new ResourceNotFoundException("BUSINESS_MISSING");
             }
 
             if (Boolean.FALSE.equals(user.getBusiness().getActive())) {
-                throw new ResourceNotFoundException("Business is disabled. Contact admin.");
+                throw new ResourceNotFoundException("BUSINESS_DISABLED");
             }
         }
 
@@ -108,5 +128,4 @@ public class AuthServiceImpl implements AuthService {
                 user.getRole().name()
         );
     }
-
 }

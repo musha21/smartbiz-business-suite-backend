@@ -1,15 +1,18 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.ProductsDto;
+import com.example.smartBiz.entity.Business;
+import com.example.smartBiz.entity.Category;
 import com.example.smartBiz.entity.Products;
 import com.example.smartBiz.entity.Supplier;
 import com.example.smartBiz.exception.ResourceNotFoundException;
-import com.example.smartBiz.repository.ProductRepo;
-import com.example.smartBiz.repository.SupplierRepo;
+import com.example.smartBiz.repository.*;
 import com.example.smartBiz.security.RequestContext;
 import com.example.smartBiz.service.ProductService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -17,51 +20,75 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepo productRepo;
     private final SupplierRepo supplierRepo;
+    private final ProductBatchRepo batchRepo;
     private final RequestContext requestContext;
 
-    public ProductServiceImpl(ProductRepo productRepo, SupplierRepo supplierRepo, RequestContext requestContext) {
+    private final CategoryRepo categoryRepo;
+    private final BusinessRepo businessRepo;
+
+    public ProductServiceImpl(
+            ProductRepo productRepo,
+            SupplierRepo supplierRepo,
+            ProductBatchRepo batchRepo,
+            RequestContext requestContext,
+            CategoryRepo categoryRepo,
+            BusinessRepo businessRepo
+    ) {
         this.productRepo = productRepo;
         this.supplierRepo = supplierRepo;
+        this.batchRepo = batchRepo;
         this.requestContext = requestContext;
+        this.categoryRepo = categoryRepo;
+        this.businessRepo = businessRepo;
     }
 
-    // -------------------------
-    // Helpers (reduce duplicate)
-    // -------------------------
     private Long requireBusinessId() {
         Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
-            throw new RuntimeException("Business context missing (JWT token required)");
-        }
+        if (businessId == null) throw new RuntimeException("Business context missing (JWT token required)");
         return businessId;
     }
 
-    private ProductsDto toDto(Products p) {
-        return new ProductsDto(
-                p.getId(),
-                p.getName(),
-                p.getPrice(),
-                p.getStock_qty(),
-                p.getLow_stock_limit(),
-                p.getSupplier() != null ? p.getSupplier().getId() : null
-        );
-    }
-
-    private Products requireOwnedProduct(Long id, Long businessId) {
-        Products product = productRepo.findById(id)
+    // ✅ Only ACTIVE product
+    private Products requireOwnedActiveProduct(Long id, Long businessId) {
+        return productRepo.findByIdAndBusinessIdAndDeletedAtIsNull(id, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id " + id));
-
-        if (product.getBusinessId() == null || !product.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: product not in your business");
-        }
-        return product;
     }
 
-    private void applyDtoToEntity(Products product, ProductsDto dto) {
+    // ✅ Active or Archived (for archive/restore)
+    private Products requireOwnedAnyProduct(Long id, Long businessId) {
+        return productRepo.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found with id " + id));
+    }
+
+    private Category resolveCategory(Long categoryId, Long businessId) {
+        if (categoryId == null) return null;
+        return categoryRepo.findByIdAndBusinessId(categoryId, businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id " + categoryId));
+    }
+
+    private String prefix(String text, int len) {
+        String cleaned = (text == null ? "" : text)
+                .replaceAll("[^A-Za-z0-9]", "")
+                .toUpperCase();
+        if (cleaned.length() >= len) return cleaned.substring(0, len);
+        return (cleaned + "XXX").substring(0, len);
+    }
+
+    private String generateSku(String businessName, String categoryName, Long productId) {
+        String bus = prefix(businessName, 3);
+        String cat = prefix(categoryName, 2);
+        return bus + cat + productId;
+    }
+
+    private void applyDtoToEntity(Products product, ProductsDto dto, Long businessId) {
         product.setName(dto.getName());
         product.setPrice(dto.getPrice());
-        product.setStock_qty(dto.getStockQty());
         product.setLow_stock_limit(dto.getLowStockLimit());
+
+        // product table stock not real
+        product.setStock_qty(0);
+
+        product.setCategory(resolveCategory(dto.getCategoryId(), businessId));
 
         if (dto.getSupplierId() != null) {
             Supplier supplier = supplierRepo.findById(dto.getSupplierId())
@@ -72,57 +99,126 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    // -------------------------
-    // CRUD
-    // -------------------------
+    private ProductsDto toDto(Products p, Long businessId) {
+        Integer available = batchRepo.sumQtyByBusinessIdAndProductId(businessId, p.getId());
+
+        ProductsDto dto = new ProductsDto();
+        dto.setId(p.getId());
+        dto.setName(p.getName());
+        dto.setPrice(p.getPrice());
+
+        dto.setSku(p.getSku());
+        dto.setCategoryId(p.getCategory() != null ? p.getCategory().getId() : null);
+        dto.setCategoryName(p.getCategory() != null ? p.getCategory().getName() : null);
+
+        dto.setAvailableStock(available);
+        dto.setLowStockLimit(p.getLow_stock_limit());
+        dto.setSupplierId(p.getSupplier() != null ? p.getSupplier().getId() : null);
+
+        return dto;
+    }
+
     @Override
+    @Transactional
     public ProductsDto createProduct(ProductsDto dto) {
         Long businessId = requireBusinessId();
 
-        Products product = new Products();
-        applyDtoToEntity(product, dto);
+        Business business = businessRepo.findById(businessId)
+                .orElseThrow(() -> new ResourceNotFoundException("Business not found with id " + businessId));
 
-        // ✅ businessId from JWT only
+        Products product = new Products();
+        applyDtoToEntity(product, dto, businessId);
         product.setBusinessId(businessId);
 
-        return toDto(productRepo.save(product));
+        Products saved = productRepo.save(product);
+
+        String catName = saved.getCategory() != null ? saved.getCategory().getName() : "NA";
+        String sku = generateSku(business.getName(), catName, saved.getId());
+
+        if (productRepo.existsByBusinessIdAndSku(businessId, sku)) {
+            sku = sku + "X";
+        }
+
+        saved.setSku(sku);
+        Products saved2 = productRepo.save(saved);
+
+        return toDto(saved2, businessId);
     }
 
     @Override
+    @Transactional
     public ProductsDto updateProduct(Long id, ProductsDto dto) {
         Long businessId = requireBusinessId();
 
-        Products existing = requireOwnedProduct(id, businessId);
-        applyDtoToEntity(existing, dto);
+        Products existing = requireOwnedActiveProduct(id, businessId);
 
-        // ✅ never allow changing business ownership
+        String oldSku = existing.getSku();
+
+        applyDtoToEntity(existing, dto, businessId);
+
         existing.setBusinessId(businessId);
+        existing.setSku(oldSku);
 
-        return toDto(productRepo.save(existing));
+        Products saved = productRepo.save(existing);
+        return toDto(saved, businessId);
     }
 
+    // ✅ DELETE = ARCHIVE (ERP SAFE)
     @Override
+    @Transactional
     public void deleteProduct(Long id) {
-        Long businessId = requireBusinessId();
-        Products product = requireOwnedProduct(id, businessId);
-        productRepo.delete(product);
+        archiveProduct(id);
     }
 
     @Override
     public ProductsDto getProductById(Long id) {
         Long businessId = requireBusinessId();
-        Products product = requireOwnedProduct(id, businessId);
-        return toDto(product);
+        Products product = requireOwnedActiveProduct(id, businessId);
+        return toDto(product, businessId);
     }
 
     @Override
     public List<ProductsDto> getAllProducts() {
         Long businessId = requireBusinessId();
-
-        // ✅ must NOT use findAll()
-        return productRepo.findByBusinessId(businessId)
+        return productRepo.findByBusinessIdAndDeletedAtIsNull(businessId)
                 .stream()
-                .map(this::toDto)
+                .map(p -> toDto(p, businessId))
+                .toList();
+    }
+
+    // ✅ ARCHIVE
+    @Override
+    @Transactional
+    public void archiveProduct(Long id) {
+        Long businessId = requireBusinessId();
+
+        Products product = requireOwnedAnyProduct(id, businessId);
+
+        if (product.getDeletedAt() == null) {
+            product.setDeletedAt(LocalDateTime.now());
+            productRepo.save(product);
+        }
+    }
+
+    // ✅ RESTORE
+    @Override
+    @Transactional
+    public void restoreProduct(Long id) {
+        Long businessId = requireBusinessId();
+
+        Products product = requireOwnedAnyProduct(id, businessId);
+
+        product.setDeletedAt(null);
+        productRepo.save(product);
+    }
+
+    @Override
+    public List<ProductsDto> getArchivedProducts() {
+        Long businessId = requireBusinessId();
+
+        return productRepo.findByBusinessIdAndDeletedAtIsNotNull(businessId)
+                .stream()
+                .map(p -> toDto(p, businessId))
                 .toList();
     }
 }

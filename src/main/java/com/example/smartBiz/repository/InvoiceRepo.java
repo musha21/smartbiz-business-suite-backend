@@ -89,6 +89,31 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
     Double sumTotalByStatusBetween(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
 
     Optional<Invoice> findByInvoiceNumberAndBusinessId(String invoiceNumber, Long businessId);
+    @Query("""
+  SELECT i FROM Invoice i
+  LEFT JOIN FETCH i.items it
+  LEFT JOIN FETCH it.product
+  LEFT JOIN FETCH it.batch
+  LEFT JOIN FETCH i.customer
+  WHERE i.id = :id
+""")
+    Optional<Invoice> findInvoiceWithItems(Long id);
+
+    long countByBusinessIdAndStatus(Long businessId, InvoiceStatus status);
+
+    @org.springframework.data.jpa.repository.Query("""
+    SELECT COALESCE(SUM(i.totalAmount), 0)
+    FROM Invoice i
+    WHERE i.businessId = :businessId
+      AND i.status = :status
+      AND i.invoiceDate BETWEEN :start AND :end
+""")
+    Double sumTotalAmountByBusinessAndStatusAndDateRange(
+            Long businessId,
+            InvoiceStatus status,
+            java.time.LocalDateTime start,
+            java.time.LocalDateTime end
+    );
 
 
 }

@@ -14,17 +14,24 @@ public class InvoiceItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Integer quantity;
-    private Double unitPrice;
-    private Double lineTotal;
-
-    // Item belongs to ONE invoice
+    // MANY items belong to ONE invoice
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id", nullable = false)
     private Invoice invoice;
 
-    // Item references ONE product
+    // Sold product
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Products product;
+
+    // 🔥 NEW: Sold batch
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id", nullable = false)
+    private ProductBatch batch;
+
+    private Integer quantity;
+
+    private Double unitPrice;
+
+    private Double lineTotal;
 }
