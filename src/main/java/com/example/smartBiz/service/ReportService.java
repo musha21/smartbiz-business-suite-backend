@@ -9,5 +9,5 @@ import java.util.List;
 public interface ReportService {
     MonthlyRevenueDto getMonthlyRevenue(int year, int month);
     List<TopProductDto> getTopProducts(int year, int month, int limit);
-    List<UnpaidInvoiceDto> getUnpaidInvoices();
+    List<UnpaidInvoiceDto> getUnpaidInvoices(int year, int month, int limit);
 }

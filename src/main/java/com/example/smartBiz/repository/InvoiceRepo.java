@@ -5,7 +5,8 @@ import com.example.smartBiz.entity.Invoice;
 import com.example.smartBiz.enums.InvoiceStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Pageable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -114,7 +115,44 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
             java.time.LocalDateTime start,
             java.time.LocalDateTime end
     );
+    // ✅ Monthly revenue (PAID) scoped by business
+    @Query("""
+        select coalesce(sum(i.totalAmount), 0)
+        from Invoice i
+        where i.status = :status
+          and i.invoiceDate between :start and :end
+          and i.businessId = :businessId
+    """)
+    double sumTotalByStatusBetweenAndBusinessId(
+            @Param("status") InvoiceStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("businessId") Long businessId
+    );
 
+    @Query("""
+        SELECT new com.example.smartBiz.dto.UnpaidInvoiceDto(
+            i.id,
+            i.invoiceNumber,
+            i.invoiceDate,
+            COALESCE(i.totalAmount, 0.0),
+            c.id,
+            c.name
+        )
+        FROM Invoice i
+        JOIN i.customer c
+        WHERE i.status = :status
+          AND i.invoiceDate BETWEEN :start AND :end
+          AND i.businessId = :businessId
+        ORDER BY i.invoiceDate DESC
+    """)
+    List<UnpaidInvoiceDto> findInvoicesByStatusAsDtoAndBusinessId(
+            @Param("status") InvoiceStatus status,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end,
+            @Param("businessId") Long businessId,
+            Pageable pageable
+    );
 
 }
 

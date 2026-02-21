@@ -79,7 +79,8 @@ public class AuthServiceImpl implements AuthService {
                 token,
                 savedUser.getId(),
                 savedBusiness.getId(),
-                savedUser.getRole().name()
+                savedUser.getRole().name(),
+                savedUser.getName()
         );
     }
 
@@ -125,7 +126,8 @@ public class AuthServiceImpl implements AuthService {
                 token,
                 user.getId(),
                 businessId,
-                user.getRole().name()
+                user.getRole().name(),
+                user.getName()
         );
     }
 }

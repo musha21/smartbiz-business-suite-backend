@@ -45,7 +45,11 @@ public class ReportController {
     // ✅ Unpaid invoices list
     // GET /v1/api/reports/invoices/unpaid
     @GetMapping("/invoices/unpaid")
-    public ResponseEntity<List<UnpaidInvoiceDto>> unpaidInvoices() {
-        return ResponseEntity.ok(reportService.getUnpaidInvoices());
+    public ResponseEntity<List<UnpaidInvoiceDto>> unpaidInvoices(
+            @RequestParam int year,
+            @RequestParam int month,
+            @RequestParam(defaultValue = "5") int limit
+    ) {
+        return ResponseEntity.ok(reportService.getUnpaidInvoices(year,month,limit));
     }
 }
