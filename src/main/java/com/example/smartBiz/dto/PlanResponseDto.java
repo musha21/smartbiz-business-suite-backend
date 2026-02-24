@@ -19,6 +19,7 @@ public class PlanResponseDto {
     private Boolean active;
     private Double monthlyPrice;
     private Double yearlyPrice;
+    private String status; // ACTIVE / INACTIVE
     private LocalDateTime createdAt;
 
     /** All limits for this plan: key → value (-1 = unlimited) */

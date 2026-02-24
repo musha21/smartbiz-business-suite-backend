@@ -1,5 +1,6 @@
 package com.example.smartBiz.entity;
 
+import com.example.smartBiz.enums.PlanStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,6 +28,10 @@ public class Plan {
 
     @Column(nullable = false)
     private Boolean active = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PlanStatus status = PlanStatus.ACTIVE;
 
     /** Price when billed monthly (0 for free plans) */
     @Column(nullable = false)

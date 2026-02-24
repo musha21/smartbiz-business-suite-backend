@@ -14,4 +14,6 @@ public interface PlanService {
     List<PlanResponseDto> getAllPlans();
 
     List<PlanResponseDto> getActivePlans();
+
+    PlanResponseDto updatePlanStatus(Long planId, String status);
 }

@@ -2,7 +2,9 @@ package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.PlanCreateDto;
 import com.example.smartBiz.dto.PlanResponseDto;
+import com.example.smartBiz.dto.PlanStatusUpdateDto;
 import com.example.smartBiz.entity.Plan;
+import com.example.smartBiz.enums.PlanStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.PlanRepo;
 import com.example.smartBiz.service.PlanLimitService;
@@ -39,6 +41,7 @@ public class PlanServiceImpl implements PlanService {
         plan.setMonthlyPrice(dto.getMonthlyPrice());
         plan.setYearlyPrice(dto.getYearlyPrice());
         plan.setActive(true);
+        plan.setStatus(PlanStatus.ACTIVE);
 
         Plan saved = planRepo.save(plan);
         return mapToResponse(saved);
@@ -69,9 +72,29 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     public List<PlanResponseDto> getActivePlans() {
-        return planRepo.findByActiveTrue().stream()
+        return planRepo.findAllByStatus(PlanStatus.ACTIVE).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public PlanResponseDto updatePlanStatus(Long planId, String status) {
+        Plan plan = planRepo.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + planId));
+
+        try {
+            PlanStatus newStatus = PlanStatus.valueOf(status.toUpperCase());
+            plan.setStatus(newStatus);
+            // Sync active for backward compatibility if needed, but requirements say use
+            // status
+            plan.setActive(newStatus == PlanStatus.ACTIVE);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status: " + status + ". Use ACTIVE or INACTIVE");
+        }
+
+        Plan saved = planRepo.save(plan);
+        return mapToResponse(saved);
     }
 
     private PlanResponseDto mapToResponse(Plan plan) {
@@ -81,6 +104,7 @@ public class PlanServiceImpl implements PlanService {
         dto.setName(plan.getName());
         dto.setDescription(plan.getDescription());
         dto.setActive(plan.getActive());
+        dto.setStatus(plan.getStatus().name());
         dto.setMonthlyPrice(plan.getMonthlyPrice());
         dto.setYearlyPrice(plan.getYearlyPrice());
         dto.setCreatedAt(plan.getCreatedAt());

@@ -2,6 +2,7 @@ package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.PlanCreateDto;
 import com.example.smartBiz.dto.PlanResponseDto;
+import com.example.smartBiz.dto.PlanStatusUpdateDto;
 import com.example.smartBiz.service.PlanService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -37,10 +38,17 @@ public class AdminPlanController {
         return ResponseEntity.ok(planService.updatePlan(planId, dto));
     }
 
-    /** List all plans (admin sees all, including inactive) */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<PlanResponseDto>> getAll() {
         return ResponseEntity.ok(planService.getAllPlans());
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{planId}/status")
+    public ResponseEntity<PlanResponseDto> updateStatus(
+            @PathVariable(name = "planId") Long planId,
+            @Valid @RequestBody PlanStatusUpdateDto dto) {
+        return ResponseEntity.ok(planService.updatePlanStatus(planId, dto.getStatus()));
     }
 }

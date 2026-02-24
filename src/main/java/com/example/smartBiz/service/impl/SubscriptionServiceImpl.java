@@ -39,8 +39,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             BusinessRepo businessRepo,
             PlanRepo planRepo,
             PlanLimitService planLimitService,
-            UsageCounterService usageCounterService
-    ) {
+            UsageCounterService usageCounterService) {
         this.subscriptionRepo = subscriptionRepo;
         this.businessRepo = businessRepo;
         this.planRepo = planRepo;
@@ -59,6 +58,11 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         Plan plan = planRepo.findById(dto.getPlanId())
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found: " + dto.getPlanId()));
+
+        // ✅ Block assignment of INACTIVE plans
+        if (!com.example.smartBiz.enums.PlanStatus.ACTIVE.equals(plan.getStatus())) {
+            throw new RuntimeException("Plan is " + plan.getStatus() + " and cannot be newly assigned.");
+        }
 
         // Cancel any existing ACTIVE subscription for this business
         Optional<Subscription> existingOpt = subscriptionRepo
@@ -153,7 +157,8 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         Optional<Subscription> subOpt = subscriptionRepo
                 .findByBusinessIdAndStatus(businessId, SubscriptionStatus.ACTIVE);
 
-        if (subOpt.isEmpty()) return;
+        if (subOpt.isEmpty())
+            return;
 
         Subscription sub = subOpt.get();
 
