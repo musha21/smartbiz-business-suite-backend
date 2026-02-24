@@ -7,6 +7,11 @@ import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.*;
 import com.example.smartBiz.security.RequestContext;
 import com.example.smartBiz.service.InvoiceService;
+import com.example.smartBiz.service.PlanLimitService;
+import com.example.smartBiz.service.SubscriptionService;
+import com.example.smartBiz.service.UsageCounterService;
+import com.example.smartBiz.entity.Subscription;
+import com.example.smartBiz.enums.SubscriptionStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,18 +29,29 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final ProductBatchRepo batchRepo;
     private final RequestContext requestContext;
 
+    // ─── Subscription enforcement ────────────────────────
+    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimitService;
+    private final UsageCounterService usageCounterService;
+
     public InvoiceServiceImpl(
             InvoiceRepo invoiceRepository,
             CustomerRepo customerRepository,
             ProductRepo productRepo,
             ProductBatchRepo batchRepo,
-            RequestContext requestContext
+            RequestContext requestContext,
+            SubscriptionService subscriptionService,
+            PlanLimitService planLimitService,
+            UsageCounterService usageCounterService
     ) {
         this.invoiceRepository = invoiceRepository;
         this.customerRepository = customerRepository;
         this.productRepo = productRepo;
         this.batchRepo = batchRepo;
         this.requestContext = requestContext;
+        this.subscriptionService = subscriptionService;
+        this.planLimitService = planLimitService;
+        this.usageCounterService = usageCounterService;
     }
 
     private Long requireBusinessId() {
@@ -108,6 +124,28 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Long businessId = requireBusinessId();
 
+        // ─── PLAN LIMIT ENFORCEMENT ──────────────────────
+        // 1) Refresh expiry (mark expired if endAt has passed)
+        subscriptionService.refreshExpiryIfNeeded(businessId);
+
+        // 2) Check active subscription exists
+        MySubscriptionDto mySub = subscriptionService.getMySubscription(businessId);
+        if ("NONE".equals(mySub.getStatus())) {
+            throw new RuntimeException("No active subscription. Contact admin to assign a plan.");
+        }
+
+        // 3) Check INVOICES_PER_MONTH limit
+        Long limit = mySub.getLimits() != null
+                ? mySub.getLimits().getOrDefault("INVOICES_PER_MONTH", -1L)
+                : -1L;
+
+        if (limit != -1 && mySub.getInvoicesUsed() >= limit) {
+            throw new ResourceNotFoundException(
+                    "Invoice limit reached (" + mySub.getInvoicesUsed() + "/" + limit
+                    + "). Upgrade your plan or contact admin.");
+        }
+        // ─── END PLAN LIMIT ENFORCEMENT ──────────────────
+
         if (request.getCustomerId() == null) throw new ResourceNotFoundException("customerId is required");
         if (request.getItems() == null || request.getItems().isEmpty()) throw new ResourceNotFoundException("items are required");
 
@@ -163,6 +201,10 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setTotalAmount(grandTotal);
 
         Invoice saved = invoiceRepository.save(invoice);
+
+        // ─── INCREMENT USAGE COUNTER ─────────────────────
+        usageCounterService.incrementInvoiceCount(businessId);
+
         return mapToResponse(saved);
     }
 
