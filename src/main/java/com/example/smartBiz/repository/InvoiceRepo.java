@@ -13,146 +13,154 @@ import java.util.Optional;
 
 public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
 
+  // ✅ List all invoices (BUSINESS SAFE)
+  @Query("""
+          SELECT i FROM Invoice i
+          WHERE i.businessId = :businessId
+            AND (:status IS NULL OR i.status = :status)
+            AND (:from IS NULL OR i.invoiceDate >= :from)
+            AND (:to IS NULL OR i.invoiceDate <= :to)
+            AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
+          ORDER BY i.invoiceDate DESC
+      """)
+  List<Invoice> filterInvoices(
+      @Param("businessId") Long businessId,
+      @Param("status") InvoiceStatus status,
+      @Param("from") LocalDateTime from,
+      @Param("to") LocalDateTime to,
+      @Param("q") String q);
 
-    // ✅ List all invoices (BUSINESS SAFE)
-    @Query("""
-                SELECT i FROM Invoice i
-                WHERE i.businessId = :businessId
-                  AND (:status IS NULL OR i.status = :status)
-                  AND (:from IS NULL OR i.invoiceDate >= :from)
-                  AND (:to IS NULL OR i.invoiceDate <= :to)
-                  AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
-                ORDER BY i.invoiceDate DESC
-            """)
-    List<Invoice> filterInvoices(Long businessId,
-                                 InvoiceStatus status,
-                                 LocalDateTime from,
-                                 LocalDateTime to,
-                                 String q);
+  // ✅ Filter invoices by customer (BUSINESS SAFE)
+  @Query("""
+          SELECT i FROM Invoice i
+          WHERE i.businessId = :businessId
+            AND i.customer.id = :customerId
+            AND (:status IS NULL OR i.status = :status)
+            AND (:from IS NULL OR i.invoiceDate >= :from)
+            AND (:to IS NULL OR i.invoiceDate <= :to)
+            AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
+          ORDER BY i.invoiceDate DESC
+      """)
+  List<Invoice> filterInvoicesByCustomer(
+      @Param("businessId") Long businessId,
+      @Param("customerId") Long customerId,
+      @Param("status") InvoiceStatus status,
+      @Param("from") LocalDateTime from,
+      @Param("to") LocalDateTime to,
+      @Param("q") String q);
 
-    // ✅ Filter invoices by customer (BUSINESS SAFE)
-    @Query("""
-                SELECT i FROM Invoice i
-                WHERE i.businessId = :businessId
-                  AND i.customer.id = :customerId
-                  AND (:status IS NULL OR i.status = :status)
-                  AND (:from IS NULL OR i.invoiceDate >= :from)
-                  AND (:to IS NULL OR i.invoiceDate <= :to)
-                  AND (:q IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :q, '%')))
-                ORDER BY i.invoiceDate DESC
-            """)
-    List<Invoice> filterInvoicesByCustomer(Long businessId,
-                                           Long customerId,
-                                           InvoiceStatus status,
-                                           LocalDateTime from,
-                                           LocalDateTime to,
-                                           String q);
+  Long countByStatus(InvoiceStatus status);
 
-    Long countByStatus(InvoiceStatus status);
+  @Query("""
+          SELECT COALESCE(SUM(i.totalAmount), 0)
+          FROM Invoice i
+          WHERE i.status = :status
+            AND i.invoiceDate BETWEEN :start AND :end
+      """)
+  Double sumTotalAmountByStatusAndDateRange(
+      @Param("status") InvoiceStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 
-    @Query("""
-                SELECT COALESCE(SUM(i.totalAmount), 0)
-                FROM Invoice i
-                WHERE i.status = :status
-                  AND i.invoiceDate BETWEEN :start AND :end
-            """)
-    Double sumTotalAmountByStatusAndDateRange(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
+  @Query("""
+        SELECT i FROM Invoice i
+        LEFT JOIN FETCH i.items it
+        LEFT JOIN FETCH it.product
+        LEFT JOIN FETCH i.customer
+        WHERE i.id = :id
+      """)
+  Optional<Invoice> findInvoiceForPdf(@Param("id") Long id);
 
-    @Query("""
-              SELECT i FROM Invoice i
-              LEFT JOIN FETCH i.items it
-              LEFT JOIN FETCH it.product
-              LEFT JOIN FETCH i.customer
-              WHERE i.id = :id
-            """)
-    Optional<Invoice> findInvoiceForPdf(Long id);
+  // Unpaid invoices list (light DTO)
+  @Query("""
+          SELECT new com.example.smartBiz.dto.UnpaidInvoiceDto(
+              i.id, i.invoiceNumber, i.invoiceDate, i.totalAmount,
+              c.id, c.name
+          )
+          FROM Invoice i
+          JOIN i.customer c
+          WHERE i.status = :status
+          ORDER BY i.invoiceDate DESC
+      """)
+  List<UnpaidInvoiceDto> findInvoicesByStatusAsDto(@Param("status") InvoiceStatus status);
 
-    // Unpaid invoices list (light DTO)
-    @Query("""
-                SELECT new com.example.smartBiz.dto.UnpaidInvoiceDto(
-                    i.id, i.invoiceNumber, i.invoiceDate, i.totalAmount,
-                    c.id, c.name
-                )
-                FROM Invoice i
-                JOIN i.customer c
-                WHERE i.status = :status
-                ORDER BY i.invoiceDate DESC
-            """)
-    List<UnpaidInvoiceDto> findInvoicesByStatusAsDto(InvoiceStatus status);
+  // Monthly revenue (sum of PAID invoice totals)
+  @Query("""
+          SELECT COALESCE(SUM(i.totalAmount), 0)
+          FROM Invoice i
+          WHERE i.status = :status
+            AND i.invoiceDate BETWEEN :start AND :end
+      """)
+  Double sumTotalByStatusBetween(
+      @Param("status") InvoiceStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 
-    // Monthly revenue (sum of PAID invoice totals)
-    @Query("""
-                SELECT COALESCE(SUM(i.totalAmount), 0)
-                FROM Invoice i
-                WHERE i.status = :status
-                  AND i.invoiceDate BETWEEN :start AND :end
-            """)
-    Double sumTotalByStatusBetween(InvoiceStatus status, LocalDateTime start, LocalDateTime end);
+  Optional<Invoice> findByInvoiceNumberAndBusinessId(String invoiceNumber, Long businessId);
 
-    Optional<Invoice> findByInvoiceNumberAndBusinessId(String invoiceNumber, Long businessId);
-    @Query("""
-  SELECT i FROM Invoice i
-  LEFT JOIN FETCH i.items it
-  LEFT JOIN FETCH it.product
-  LEFT JOIN FETCH it.batch
-  LEFT JOIN FETCH i.customer
-  WHERE i.id = :id
-""")
-    Optional<Invoice> findInvoiceWithItems(Long id);
+  @Query("""
+        SELECT i FROM Invoice i
+        LEFT JOIN FETCH i.items it
+        LEFT JOIN FETCH it.product
+        LEFT JOIN FETCH it.batch
+        LEFT JOIN FETCH i.customer
+        WHERE i.id = :id
+      """)
+  Optional<Invoice> findInvoiceWithItems(@Param("id") Long id);
 
-    long countByBusinessIdAndStatus(Long businessId, InvoiceStatus status);
+  long countByBusinessIdAndStatus(Long businessId, InvoiceStatus status);
 
-    @org.springframework.data.jpa.repository.Query("""
-    SELECT COALESCE(SUM(i.totalAmount), 0)
-    FROM Invoice i
-    WHERE i.businessId = :businessId
-      AND i.status = :status
-      AND i.invoiceDate BETWEEN :start AND :end
-""")
-    Double sumTotalAmountByBusinessAndStatusAndDateRange(
-            Long businessId,
-            InvoiceStatus status,
-            java.time.LocalDateTime start,
-            java.time.LocalDateTime end
-    );
-    // ✅ Monthly revenue (PAID) scoped by business
-    @Query("""
-        select coalesce(sum(i.totalAmount), 0)
-        from Invoice i
-        where i.status = :status
-          and i.invoiceDate between :start and :end
-          and i.businessId = :businessId
-    """)
-    double sumTotalByStatusBetweenAndBusinessId(
-            @Param("status") InvoiceStatus status,
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end,
-            @Param("businessId") Long businessId
-    );
+  @org.springframework.data.jpa.repository.Query("""
+          SELECT COALESCE(SUM(i.totalAmount), 0)
+          FROM Invoice i
+          WHERE i.businessId = :businessId
+            AND i.status = :status
+            AND i.invoiceDate BETWEEN :start AND :end
+      """)
+  Double sumTotalAmountByBusinessAndStatusAndDateRange(
+      @Param("businessId") Long businessId,
+      @Param("status") InvoiceStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 
-    @Query("""
-        SELECT new com.example.smartBiz.dto.UnpaidInvoiceDto(
-            i.id,
-            i.invoiceNumber,
-            i.invoiceDate,
-            COALESCE(i.totalAmount, 0.0),
-            c.id,
-            c.name
-        )
-        FROM Invoice i
-        JOIN i.customer c
-        WHERE i.status = :status
-          AND i.invoiceDate BETWEEN :start AND :end
-          AND i.businessId = :businessId
-        ORDER BY i.invoiceDate DESC
-    """)
-    List<UnpaidInvoiceDto> findInvoicesByStatusAsDtoAndBusinessId(
-            @Param("status") InvoiceStatus status,
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end,
-            @Param("businessId") Long businessId,
-            Pageable pageable
-    );
+  // ✅ Monthly revenue (PAID) scoped by business
+  @Query("""
+          select coalesce(sum(i.totalAmount), 0)
+          from Invoice i
+          where i.status = :status
+            and i.invoiceDate between :start and :end
+            and i.businessId = :businessId
+      """)
+  double sumTotalByStatusBetweenAndBusinessId(
+      @Param("status") InvoiceStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end,
+      @Param("businessId") Long businessId);
+
+  @Query("""
+          SELECT new com.example.smartBiz.dto.UnpaidInvoiceDto(
+              i.id,
+              i.invoiceNumber,
+              i.invoiceDate,
+              COALESCE(i.totalAmount, 0.0),
+              c.id,
+              c.name
+          )
+          FROM Invoice i
+          JOIN i.customer c
+          WHERE i.status = :status
+            AND i.invoiceDate BETWEEN :start AND :end
+            AND i.businessId = :businessId
+          ORDER BY i.invoiceDate DESC
+      """)
+  List<UnpaidInvoiceDto> findInvoicesByStatusAsDtoAndBusinessId(
+      @Param("status") InvoiceStatus status,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end,
+      @Param("businessId") Long businessId,
+      Pageable pageable);
+
+  @Query("SELECT COUNT(i) FROM Invoice i WHERE i.invoiceDate BETWEEN :start AND :end")
+  Long countInvoicesInMonth(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
 }
-

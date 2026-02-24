@@ -22,26 +22,25 @@ public class InvoiceListController {
         this.invoiceListService = invoiceListService;
     }
 
-    // ✅ GET /v1/api/invoices?status=PAID&from=2026-02-01T00:00:00&to=2026-02-06T23:59:59&q=INV
+    // ✅ GET
+    // /v1/api/invoices?status=PAID&from=2026-02-01T00:00:00&to=2026-02-06T23:59:59&q=INV
     @GetMapping
     public ResponseEntity<List<InvoiceListDto>> getAllInvoices(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String q
-    ) {
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(name = "q", required = false) String q) {
         return ResponseEntity.ok(invoiceListService.getAllInvoices(status, from, to, q));
     }
 
     // ✅ GET /v1/api/invoices/customer/1?status=UNPAID&q=INV
     @GetMapping("/customer/{customerId}")
     public ResponseEntity<List<InvoiceListDto>> getInvoicesByCustomer(
-            @PathVariable Long customerId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String q
-    ) {
+            @PathVariable(name = "customerId") Long customerId,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(name = "q", required = false) String q) {
         return ResponseEntity.ok(invoiceListService.getInvoicesByCustomer(customerId, status, from, to, q));
     }
 }

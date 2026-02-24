@@ -35,17 +35,19 @@ public class SecurityConfig {
 
         http
                 // ✅ Enable CORS first
-                .cors(cors -> {})
+                .cors(cors -> {
+                })
                 // ✅ Disable CSRF for APIs
                 .csrf(csrf -> csrf.disable())
                 // ✅ Stateless session (JWT)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // ✅ Allow preflight + auth endpoints
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()   // ✅ preflight
-                        .requestMatchers("/v1/api/auth/**").permitAll()          // ✅ login/register
-                        .anyRequest().authenticated()
-                )
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
+                        .requestMatchers("/v1/api/auth/**").permitAll() // ✅ login/register
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
+                                                                                                              // Swagger
+                        .anyRequest().authenticated())
                 // ✅ JWT filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -70,7 +72,7 @@ public class SecurityConfig {
         // ✅ Use patterns (more reliable than setAllowedOrigins)
         config.setAllowedOriginPatterns(List.of("http://localhost:3000"));
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT","PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

@@ -23,13 +23,14 @@ public interface ProductRepo extends JpaRepository<Products, Long> {
 
     // ✅ Low stock count (ACTIVE only)
     @Query("""
-        SELECT COUNT(p)
-        FROM Products p
-        WHERE p.businessId = :businessId
-          AND p.deletedAt IS NULL
-          AND p.stock_qty <= p.low_stock_limit
-    """)
-    long countLowStockProductsByBusinessId(Long businessId);
+                SELECT COUNT(p)
+                FROM Products p
+                WHERE p.businessId = :businessId
+                  AND p.deletedAt IS NULL
+                  AND p.stock_qty <= p.low_stock_limit
+            """)
+    long countLowStockProductsByBusinessId(
+            @org.springframework.data.repository.query.Param("businessId") Long businessId);
 
     // ✅ Optional: Archived list (if you want archive page)
     List<Products> findByBusinessIdAndDeletedAtIsNotNull(Long businessId);

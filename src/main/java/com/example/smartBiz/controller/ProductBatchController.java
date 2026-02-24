@@ -1,6 +1,5 @@
 package com.example.smartBiz.controller;
 
-
 import com.example.smartBiz.dto.BatchCreateDto;
 import com.example.smartBiz.dto.ProductBatchDto;
 import com.example.smartBiz.service.ProductBatchService;
@@ -25,17 +24,17 @@ public class ProductBatchController {
     }
 
     @GetMapping("/product/{productId}")
-    public ResponseEntity<List<ProductBatchDto>> getBatches(@PathVariable Long productId) {
+    public ResponseEntity<List<ProductBatchDto>> getBatches(@PathVariable(name = "productId") Long productId) {
         return ResponseEntity.ok(batchService.getBatchesByProduct(productId));
     }
 
     @GetMapping("/{batchId}")
-    public ResponseEntity<ProductBatchDto> getBatch(@PathVariable Long batchId) {
+    public ResponseEntity<ProductBatchDto> getBatch(@PathVariable(name = "batchId") Long batchId) {
         return ResponseEntity.ok(batchService.getBatchById(batchId));
     }
 
     @DeleteMapping("/{batchId}")
-    public ResponseEntity<Void> delete(@PathVariable Long batchId) {
+    public ResponseEntity<Void> delete(@PathVariable(name = "batchId") Long batchId) {
         batchService.deleteBatch(batchId);
         return ResponseEntity.noContent().build();
     }

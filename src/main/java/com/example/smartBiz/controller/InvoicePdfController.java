@@ -22,7 +22,7 @@ public class InvoicePdfController {
 
     // GET /v1/api/invoices/{id}/pdf
     @GetMapping("/{id}/pdf")
-    public ResponseEntity<byte[]> downloadInvoicePdf(@PathVariable Long id) {
+    public ResponseEntity<byte[]> downloadInvoicePdf(@PathVariable(name = "id") Long id) {
 
         byte[] pdfBytes = invoicePdfService.generateInvoicePdf(id);
 
@@ -36,9 +36,10 @@ public class InvoicePdfController {
                 .headers(headers)
                 .body(pdfBytes);
     }
+
     // GET /v1/api/invoices/{id}/pdf/preview
     @GetMapping("/{id}/pdf/preview")
-    public ResponseEntity<byte[]> previewInvoicePdf(@PathVariable Long id) {
+    public ResponseEntity<byte[]> previewInvoicePdf(@PathVariable(name = "id") Long id) {
 
         byte[] pdfBytes = invoicePdfService.generateInvoicePdf(id);
 
@@ -47,8 +48,7 @@ public class InvoicePdfController {
         headers.setContentDisposition(
                 ContentDisposition.inline()
                         .filename("invoice-" + id + ".pdf")
-                        .build()
-        );
+                        .build());
 
         return ResponseEntity.ok()
                 .headers(headers)

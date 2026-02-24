@@ -21,7 +21,7 @@ public class OwnerSubscriptionController {
      * GET /v1/api/subscriptions/my?businessId=1
      */
     @GetMapping("/my")
-    public ResponseEntity<MySubscriptionDto> mySubscription(@RequestParam Long businessId) {
+    public ResponseEntity<MySubscriptionDto> mySubscription(@RequestParam(name = "businessId") Long businessId) {
         return ResponseEntity.ok(subscriptionService.getMySubscription(businessId));
     }
 }

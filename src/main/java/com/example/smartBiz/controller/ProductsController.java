@@ -24,19 +24,19 @@ public class ProductsController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProductsDto> update(@PathVariable Long id, @RequestBody ProductsDto dto) {
+    public ResponseEntity<ProductsDto> update(@PathVariable(name = "id") Long id, @RequestBody ProductsDto dto) {
         return ResponseEntity.ok(productService.updateProduct(id, dto));
     }
 
     // ✅ delete = archive
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<Void> delete(@PathVariable(name = "id") Long id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductsDto> getById(@PathVariable Long id) {
+    public ResponseEntity<ProductsDto> getById(@PathVariable(name = "id") Long id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
@@ -47,16 +47,17 @@ public class ProductsController {
 
     // ✅ soft delete endpoints
     @PatchMapping("/{id}/archive")
-    public ResponseEntity<Void> archive(@PathVariable Long id) {
+    public ResponseEntity<Void> archive(@PathVariable(name = "id") Long id) {
         productService.archiveProduct(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/restore")
-    public ResponseEntity<Void> restore(@PathVariable Long id) {
+    public ResponseEntity<Void> restore(@PathVariable(name = "id") Long id) {
         productService.restoreProduct(id);
         return ResponseEntity.noContent().build();
     }
+
     @GetMapping("/archived")
     public ResponseEntity<List<ProductsDto>> getArchived() {
         return ResponseEntity.ok(productService.getArchivedProducts());

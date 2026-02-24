@@ -25,9 +25,8 @@ public class AdminPlanLimitController {
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping
     public ResponseEntity<String> upsert(
-            @PathVariable Long planId,
-            @Valid @RequestBody List<PlanLimitUpsertDto> limits
-    ) {
+            @PathVariable(name = "planId") Long planId,
+            @Valid @RequestBody List<PlanLimitUpsertDto> limits) {
         planLimitService.upsertLimits(planId, limits);
         return ResponseEntity.ok("Limits updated for plan " + planId);
     }
@@ -35,7 +34,7 @@ public class AdminPlanLimitController {
     /** Get all limits for a plan */
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<Map<String, Long>> getLimits(@PathVariable Long planId) {
+    public ResponseEntity<Map<String, Long>> getLimits(@PathVariable(name = "planId") Long planId) {
         return ResponseEntity.ok(planLimitService.getLimitsMap(planId));
     }
 }

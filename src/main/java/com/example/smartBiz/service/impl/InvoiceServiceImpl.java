@@ -1,7 +1,6 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.*;
-import com.example.smartBiz.entity.*;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.*;
@@ -10,8 +9,8 @@ import com.example.smartBiz.service.InvoiceService;
 import com.example.smartBiz.service.PlanLimitService;
 import com.example.smartBiz.service.SubscriptionService;
 import com.example.smartBiz.service.UsageCounterService;
-import com.example.smartBiz.entity.Subscription;
-import com.example.smartBiz.enums.SubscriptionStatus;
+import com.example.smartBiz.entity.*;
+import com.example.smartBiz.enums.InvoiceStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +30,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     // ─── Subscription enforcement ────────────────────────
     private final SubscriptionService subscriptionService;
-    private final PlanLimitService planLimitService;
     private final UsageCounterService usageCounterService;
 
     public InvoiceServiceImpl(
@@ -41,22 +39,20 @@ public class InvoiceServiceImpl implements InvoiceService {
             ProductBatchRepo batchRepo,
             RequestContext requestContext,
             SubscriptionService subscriptionService,
-            PlanLimitService planLimitService,
-            UsageCounterService usageCounterService
-    ) {
+            UsageCounterService usageCounterService) {
         this.invoiceRepository = invoiceRepository;
         this.customerRepository = customerRepository;
         this.productRepo = productRepo;
         this.batchRepo = batchRepo;
         this.requestContext = requestContext;
         this.subscriptionService = subscriptionService;
-        this.planLimitService = planLimitService;
         this.usageCounterService = usageCounterService;
     }
 
     private Long requireBusinessId() {
         Long businessId = requestContext.getBusinessId();
-        if (businessId == null) throw new RuntimeException("Business context missing (JWT required)");
+        if (businessId == null)
+            throw new RuntimeException("Business context missing (JWT required)");
         return businessId;
     }
 
@@ -142,12 +138,14 @@ public class InvoiceServiceImpl implements InvoiceService {
         if (limit != -1 && mySub.getInvoicesUsed() >= limit) {
             throw new ResourceNotFoundException(
                     "Invoice limit reached (" + mySub.getInvoicesUsed() + "/" + limit
-                    + "). Upgrade your plan or contact admin.");
+                            + "). Upgrade your plan or contact admin.");
         }
         // ─── END PLAN LIMIT ENFORCEMENT ──────────────────
 
-        if (request.getCustomerId() == null) throw new ResourceNotFoundException("customerId is required");
-        if (request.getItems() == null || request.getItems().isEmpty()) throw new ResourceNotFoundException("items are required");
+        if (request.getCustomerId() == null)
+            throw new ResourceNotFoundException("customerId is required");
+        if (request.getItems() == null || request.getItems().isEmpty())
+            throw new ResourceNotFoundException("items are required");
 
         Customer customer = requireOwnedCustomer(request.getCustomerId(), businessId);
 
@@ -162,9 +160,12 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (InvoiceItemRequestDto itemReq : request.getItems()) {
 
-            if (itemReq.getProductId() == null) throw new ResourceNotFoundException("productId is required in items");
-            if (itemReq.getBatchId() == null) throw new ResourceNotFoundException("batchId is required in items");
-            if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0) throw new ResourceNotFoundException("quantity must be > 0");
+            if (itemReq.getProductId() == null)
+                throw new ResourceNotFoundException("productId is required in items");
+            if (itemReq.getBatchId() == null)
+                throw new ResourceNotFoundException("batchId is required in items");
+            if (itemReq.getQuantity() == null || itemReq.getQuantity() <= 0)
+                throw new ResourceNotFoundException("quantity must be > 0");
 
             Products product = requireOwnedProduct(itemReq.getProductId(), businessId);
             ProductBatch batch = requireOwnedBatch(itemReq.getBatchId(), businessId, product.getId());

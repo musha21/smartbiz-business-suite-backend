@@ -27,19 +27,19 @@ public class SupplierController {
 
     @PutMapping("/{id}")
     public ResponseEntity<SupplierDto> updateSupplier(
-            @PathVariable Long id,
+            @PathVariable(name = "id") Long id,
             @RequestBody SupplierDto supplierDto) {
         return ResponseEntity.ok(supplierService.updateSupplier(id, supplierDto));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSupplier(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteSupplier(@PathVariable(name = "id") Long id) {
         supplierService.deleteSupplier(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SupplierDto> getSupplierById(@PathVariable Long id) {
+    public ResponseEntity<SupplierDto> getSupplierById(@PathVariable(name = "id") Long id) {
         SupplierDto supplier = supplierService.getSupplierById(id);
         return ResponseEntity.ok(supplier);
     }

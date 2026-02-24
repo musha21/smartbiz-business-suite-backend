@@ -5,9 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
-
-
 @AllArgsConstructor
 @Data
 @NoArgsConstructor
@@ -23,16 +20,4 @@ public class Customer {
     private String address;
     @Column(nullable = false)
     private Long businessId;
-
-
-    public Customer(String name, String email, String phone, String address) {
-        this.name = name;
-        this.email = email;
-        this.phone = phone;
-        this.address = address;
-    }
-
-    // getters and setters
 }
-
-

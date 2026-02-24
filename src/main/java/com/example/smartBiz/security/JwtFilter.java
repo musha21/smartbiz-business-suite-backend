@@ -32,8 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
+            FilterChain filterChain) throws ServletException, IOException {
 
         String auth = request.getHeader("Authorization");
 
@@ -44,14 +43,33 @@ public class JwtFilter extends OncePerRequestFilter {
                 // ✅ Parse & validate token
                 Claims claims = jwtUtil.getAllClaims(token);
 
-                String role = claims.get("role", String.class);
                 Long userId = claims.get("userId", Number.class).longValue();
                 Long businessId = claims.get("businessId", Number.class) != null
                         ? claims.get("businessId", Number.class).longValue()
                         : null;
 
-                // ✅ BLOCK disabled business (non-admin only)
-                if (!"ADMIN".equals(role)) {
+                // ✅ 1) Extract Authorities (Dynamically support 'role' and 'roles' claims)
+                java.util.List<SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
+
+                // Handle claim "role": "ADMIN"
+                Object roleClaim = claims.get("role");
+                if (roleClaim instanceof String r) {
+                    addAuthority(authorities, r);
+                }
+
+                // Handle claim "roles": ["ADMIN", "OWNER"]
+                Object rolesClaim = claims.get("roles");
+                if (rolesClaim instanceof java.util.Collection<?>) {
+                    ((java.util.Collection<?>) rolesClaim).forEach(r -> {
+                        if (r instanceof String)
+                            addAuthority(authorities, (String) r);
+                    });
+                }
+
+                // ✅ 2) Ownership check (non-admin only)
+                boolean isAdmin = authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+                if (!isAdmin) {
                     if (businessId == null) {
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         response.getWriter().write("Business context missing");
@@ -68,16 +86,14 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
                 }
 
-                // ✅ Create authority ROLE_ADMIN / ROLE_OWNER
-                var authorities = List.of(
-                        new SimpleGrantedAuthority("ROLE_" + role)
-                );
+                // ✅ 3) DEBUG LOG: Verify extracted authorities
+                System.out.println("[DEBUG JWT] User: " + userId + " | Authorities: " + authorities);
 
+                // ✅ 4) Set Authentication
                 var authentication = new UsernamePasswordAuthenticationToken(
                         userId,
                         null,
-                        authorities
-                );
+                        authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -88,5 +104,16 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void addAuthority(java.util.List<SimpleGrantedAuthority> list, String role) {
+        if (role == null || role.isBlank())
+            return;
+        // Map "ADMIN" -> "ROLE_ADMIN" while keeping "ROLE_ADMIN" as is
+        String finalRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        SimpleGrantedAuthority auth = new SimpleGrantedAuthority(finalRole);
+        if (!list.contains(auth)) {
+            list.add(auth);
+        }
     }
 }

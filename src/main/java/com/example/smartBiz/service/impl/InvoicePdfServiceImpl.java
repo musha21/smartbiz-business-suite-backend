@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.util.Optional;
 
 @Service
 public class InvoicePdfServiceImpl implements InvoicePdfService {
@@ -29,8 +28,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
     public InvoicePdfServiceImpl(
             InvoiceRepo invoiceRepository,
             BusinessRepo businessRepo,
-            RequestContext requestContext
-    ) {
+            RequestContext requestContext) {
         this.invoiceRepository = invoiceRepository;
         this.businessRepo = businessRepo;
         this.requestContext = requestContext;
@@ -62,7 +60,8 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             }
         }
 
-        // ✅ fetch invoice with items + products + customer (prevents LazyInitializationException)
+        // ✅ fetch invoice with items + products + customer (prevents
+        // LazyInitializationException)
         Invoice invoice = invoiceRepository.findInvoiceForPdf(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
 
@@ -89,7 +88,8 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
                     logo.setAlignment(Image.ALIGN_RIGHT);
                     document.add(logo);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
 
             // 1) Company Header
             String companyName = "SmartBiz";
@@ -122,7 +122,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             // 3) Invoice Details
             PdfPTable infoTable = new PdfPTable(2);
             infoTable.setWidthPercentage(100);
-            infoTable.setWidths(new float[]{1f, 1f});
+            infoTable.setWidths(new float[] { 1f, 1f });
 
             Font label = new Font(Font.HELVETICA, 10, Font.BOLD);
             Font value = new Font(Font.HELVETICA, 10);
@@ -135,8 +135,10 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             left.setBorder(Rectangle.NO_BORDER);
             left.addElement(new Paragraph("Bill To:", label));
             left.addElement(new Paragraph(customerName, value));
-            if (!customerPhone.isBlank()) left.addElement(new Paragraph("Phone: " + customerPhone, value));
-            if (!customerAddress.isBlank()) left.addElement(new Paragraph("Address: " + customerAddress, value));
+            if (!customerPhone.isBlank())
+                left.addElement(new Paragraph("Phone: " + customerPhone, value));
+            if (!customerAddress.isBlank())
+                left.addElement(new Paragraph("Address: " + customerAddress, value));
 
             PdfPCell right = new PdfPCell();
             right.setBorder(Rectangle.NO_BORDER);
@@ -158,7 +160,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             PdfPTable table = new PdfPTable(5);
             table.setWidthPercentage(100);
             table.setSpacingBefore(5);
-            table.setWidths(new float[]{1.2f, 4.8f, 1.2f, 2f, 2f});
+            table.setWidths(new float[] { 1.2f, 4.8f, 1.2f, 2f, 2f });
 
             addHeaderCell(table, "No");
             addHeaderCell(table, "Product");
@@ -183,7 +185,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             PdfPTable totals = new PdfPTable(2);
             totals.setWidthPercentage(40);
             totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            totals.setWidths(new float[]{1.5f, 1f});
+            totals.setWidths(new float[] { 1.5f, 1f });
 
             totals.addCell(totalsLabel("Grand Total", label));
             totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount()), label));
@@ -257,7 +259,8 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
     }
 
     private String formatMoney(Double v) {
-        if (v == null) return "0.00";
+        if (v == null)
+            return "0.00";
         return String.format("%.2f", v);
     }
 

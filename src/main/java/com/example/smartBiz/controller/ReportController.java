@@ -16,7 +16,8 @@ import java.util.List;
 public class ReportController {
 
     private final ReportService reportService;
-@Autowired
+
+    @Autowired
     public ReportController(ReportService reportService) {
         this.reportService = reportService;
     }
@@ -25,9 +26,8 @@ public class ReportController {
     // GET /v1/api/reports/revenue/monthly?year=2026&month=2
     @GetMapping("/revenue/monthly")
     public ResponseEntity<MonthlyRevenueDto> monthlyRevenue(
-            @RequestParam int year,
-            @RequestParam int month
-    ) {
+            @RequestParam(name = "year") int year,
+            @RequestParam(name = "month") int month) {
         return ResponseEntity.ok(reportService.getMonthlyRevenue(year, month));
     }
 
@@ -35,10 +35,9 @@ public class ReportController {
     // GET /v1/api/reports/products/top?year=2026&month=2&limit=5
     @GetMapping("/products/top")
     public ResponseEntity<List<TopProductDto>> topProducts(
-            @RequestParam int year,
-            @RequestParam int month,
-            @RequestParam(defaultValue = "5") int limit
-    ) {
+            @RequestParam(name = "year") int year,
+            @RequestParam(name = "month") int month,
+            @RequestParam(name = "limit", defaultValue = "5") int limit) {
         return ResponseEntity.ok(reportService.getTopProducts(year, month, limit));
     }
 
@@ -46,10 +45,9 @@ public class ReportController {
     // GET /v1/api/reports/invoices/unpaid
     @GetMapping("/invoices/unpaid")
     public ResponseEntity<List<UnpaidInvoiceDto>> unpaidInvoices(
-            @RequestParam int year,
-            @RequestParam int month,
-            @RequestParam(defaultValue = "5") int limit
-    ) {
-        return ResponseEntity.ok(reportService.getUnpaidInvoices(year,month,limit));
+            @RequestParam(name = "year") int year,
+            @RequestParam(name = "month") int month,
+            @RequestParam(name = "limit", defaultValue = "5") int limit) {
+        return ResponseEntity.ok(reportService.getUnpaidInvoices(year, month, limit));
     }
 }

@@ -32,9 +32,8 @@ public class AdminPlanController {
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{planId}")
     public ResponseEntity<PlanResponseDto> update(
-            @PathVariable Long planId,
-            @Valid @RequestBody PlanCreateDto dto
-    ) {
+            @PathVariable(name = "planId") Long planId,
+            @Valid @RequestBody PlanCreateDto dto) {
         return ResponseEntity.ok(planService.updatePlan(planId, dto));
     }
 

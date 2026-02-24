@@ -9,7 +9,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "expenses")
+@Table(name = "expenses", indexes = {
+        @Index(name = "idx_expenses_business_date", columnList = "businessId, expenseDate")
+})
 public class Expense {
 
     @Id
@@ -18,7 +20,7 @@ public class Expense {
 
     private LocalDateTime expenseDate;
 
-    private String category;   // e.g. Rent, Salary, Transport
+    private String category; // e.g. Rent, Salary, Transport
     private Double amount;
     private String note;
     // optional description
