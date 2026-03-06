@@ -15,5 +15,7 @@ public interface PlanService {
 
     List<PlanResponseDto> getActivePlans();
 
+    List<com.example.smartBiz.dto.PlanCardDto> getActivePlanCards();
+
     PlanResponseDto updatePlanStatus(Long planId, String status);
 }

@@ -2,10 +2,13 @@ package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.CustomerDto;
 import com.example.smartBiz.entity.Customer;
+import com.example.smartBiz.entity.Subscription;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.CustomerRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.CustomerService;
+import com.example.smartBiz.service.PlanLimitService;
+import com.example.smartBiz.service.SubscriptionService;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,20 +17,24 @@ import java.util.List;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepo customerRepository;
-    private final RequestContext requestContext;
+    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimitService;
 
-    public CustomerServiceImpl(CustomerRepo customerRepository, RequestContext requestContext) {
+    public CustomerServiceImpl(CustomerRepo customerRepository,
+            SubscriptionService subscriptionService,
+            PlanLimitService planLimitService) {
         this.customerRepository = customerRepository;
-        this.requestContext = requestContext;
+        this.subscriptionService = subscriptionService;
+        this.planLimitService = planLimitService;
     }
 
     // ✅ reduce duplicates
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new RuntimeException("Business context missing (JWT required)");
         }
-        return businessId;
+        return principal.getBusinessId();
     }
 
     // ✅ ownership check
@@ -44,6 +51,18 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerDto createCustomer(CustomerDto dto) {
         Long businessId = requireBusinessId();
+
+        // ✅ Plan Limit Check: MAX_CUSTOMERS
+        Subscription sub = subscriptionService.getBusinessSubscription(businessId);
+        if (sub != null && sub.getPlan() != null) {
+            Long limit = planLimitService.getLimitValueOrDefault(sub.getPlan().getId(), "MAX_CUSTOMERS", -1L);
+            if (limit != -1) {
+                long currentCount = customerRepository.countByBusinessId(businessId);
+                if (currentCount >= limit) {
+                    throw new RuntimeException("Customer limit reached (" + limit + "). Upgrade your plan.");
+                }
+            }
+        }
 
         Customer customer = mapToEntity(dto);
         customer.setBusinessId(businessId);

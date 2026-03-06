@@ -13,16 +13,17 @@ public interface ExpenseRepo extends JpaRepository<Expense, Long> {
     // ✅ List expenses for a business
     List<Expense> findByBusinessId(Long businessId);
 
+    long countByBusinessId(Long businessId);
+
     // ✅ Sum expenses for a business between dates
     @Query("""
-        SELECT COALESCE(SUM(e.amount), 0)
-        FROM Expense e
-        WHERE e.businessId = :businessId
-          AND e.expenseDate BETWEEN :start AND :end
-    """)
+                SELECT COALESCE(SUM(e.amount), 0)
+                FROM Expense e
+                WHERE e.businessId = :businessId
+                  AND e.expenseDate BETWEEN :start AND :end
+            """)
     Double sumExpensesByBusinessBetween(
             @Param("businessId") Long businessId,
             @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end
-    );
+            @Param("end") LocalDateTime end);
 }

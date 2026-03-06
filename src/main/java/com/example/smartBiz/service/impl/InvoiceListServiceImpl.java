@@ -5,7 +5,7 @@ import com.example.smartBiz.entity.Invoice;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.InvoiceRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.InvoiceListService;
 import org.springframework.stereotype.Service;
 
@@ -16,20 +16,19 @@ import java.util.List;
 public class InvoiceListServiceImpl implements InvoiceListService {
 
     private final InvoiceRepo invoiceRepository;
-    private final RequestContext requestContext;
 
-    public InvoiceListServiceImpl(InvoiceRepo invoiceRepository, RequestContext requestContext) {
+    public InvoiceListServiceImpl(InvoiceRepo invoiceRepository) {
         this.invoiceRepository = invoiceRepository;
-        this.requestContext = requestContext;
     }
 
     @Override
     public List<InvoiceListDto> getAllInvoices(String status, LocalDateTime from, LocalDateTime to, String q) {
 
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
+        Long businessId = principal.getBusinessId();
 
         InvoiceStatus st = parseStatusSafe(status);
 
@@ -40,12 +39,14 @@ public class InvoiceListServiceImpl implements InvoiceListService {
     }
 
     @Override
-    public List<InvoiceListDto> getInvoicesByCustomer(Long customerId, String status, LocalDateTime from, LocalDateTime to, String q) {
+    public List<InvoiceListDto> getInvoicesByCustomer(Long customerId, String status, LocalDateTime from,
+            LocalDateTime to, String q) {
 
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
+        Long businessId = principal.getBusinessId();
 
         InvoiceStatus st = parseStatusSafe(status);
 
@@ -56,13 +57,15 @@ public class InvoiceListServiceImpl implements InvoiceListService {
     }
 
     private String normalizeQuery(String q) {
-        if (q == null) return null;
+        if (q == null)
+            return null;
         String trimmed = q.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 
     private InvoiceStatus parseStatusSafe(String status) {
-        if (status == null || status.isBlank()) return null;
+        if (status == null || status.isBlank())
+            return null;
         try {
             return InvoiceStatus.valueOf(status.trim().toUpperCase());
         } catch (IllegalArgumentException e) {

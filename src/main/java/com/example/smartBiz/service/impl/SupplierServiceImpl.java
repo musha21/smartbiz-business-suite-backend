@@ -4,7 +4,7 @@ import com.example.smartBiz.dto.SupplierDto;
 import com.example.smartBiz.entity.Supplier;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.SupplierRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.SupplierService;
 import org.springframework.stereotype.Service;
 
@@ -14,20 +14,18 @@ import java.util.List;
 public class SupplierServiceImpl implements SupplierService {
 
     private final SupplierRepo supplierRepository;
-    private final RequestContext requestContext;
 
-    public SupplierServiceImpl(SupplierRepo supplierRepository, RequestContext requestContext) {
+    public SupplierServiceImpl(SupplierRepo supplierRepository) {
         this.supplierRepository = supplierRepository;
-        this.requestContext = requestContext;
     }
 
     // ✅ reduce duplicates
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new RuntimeException("Business context missing (JWT required)");
         }
-        return businessId;
+        return principal.getBusinessId();
     }
 
     private Supplier requireOwnedSupplier(Long id, Long businessId) {

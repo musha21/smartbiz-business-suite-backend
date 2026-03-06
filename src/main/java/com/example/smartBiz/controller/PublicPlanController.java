@@ -26,7 +26,7 @@ public class PublicPlanController {
      * Accessible to both OWNERS and ADMINS.
      */
     @GetMapping("/active")
-    public ResponseEntity<List<PlanResponseDto>> getActive() {
-        return ResponseEntity.ok(planService.getActivePlans());
+    public ResponseEntity<List<com.example.smartBiz.dto.PlanCardDto>> getActive() {
+        return ResponseEntity.ok(planService.getActivePlanCards());
     }
 }

@@ -108,6 +108,8 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
       """)
   Optional<Invoice> findInvoiceWithItems(@Param("id") Long id);
 
+  long countByBusinessId(Long businessId);
+
   long countByBusinessIdAndStatus(Long businessId, InvoiceStatus status);
 
   @org.springframework.data.jpa.repository.Query("""
@@ -160,7 +162,15 @@ public interface InvoiceRepo extends JpaRepository<Invoice, Long> {
       @Param("businessId") Long businessId,
       Pageable pageable);
 
+  @Query("SELECT COUNT(i) FROM Invoice i WHERE i.businessId = :businessId AND i.invoiceDate BETWEEN :start AND :end")
+  long countByBusinessIdAndInvoiceDateBetween(
+      @Param("businessId") Long businessId,
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
+
   @Query("SELECT COUNT(i) FROM Invoice i WHERE i.invoiceDate BETWEEN :start AND :end")
-  Long countInvoicesInMonth(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+  long countByInvoiceDateBetween(
+      @Param("start") LocalDateTime start,
+      @Param("end") LocalDateTime end);
 
 }

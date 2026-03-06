@@ -15,6 +15,8 @@ public interface SubscriptionRepo extends JpaRepository<Subscription, Long> {
     /** Find all subscriptions for a business (history) */
     List<Subscription> findByBusinessIdOrderByCreatedAtDesc(Long businessId);
 
+    Optional<Subscription> findFirstByBusinessIdOrderByCreatedAtDesc(Long businessId);
+
     @org.springframework.data.jpa.repository.Query("SELECT COUNT(s) FROM Subscription s WHERE s.plan.monthlyPrice = 0 AND s.status = 'ACTIVE'")
     Long countActiveFreeSubscriptions();
 

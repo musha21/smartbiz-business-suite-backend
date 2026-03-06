@@ -5,10 +5,13 @@ import com.example.smartBiz.entity.Business;
 import com.example.smartBiz.entity.Category;
 import com.example.smartBiz.entity.Products;
 import com.example.smartBiz.entity.Supplier;
+import com.example.smartBiz.entity.Subscription;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.*;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.ProductService;
+import com.example.smartBiz.service.PlanLimitService;
+import com.example.smartBiz.service.SubscriptionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,31 +24,34 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepo productRepo;
     private final SupplierRepo supplierRepo;
     private final ProductBatchRepo batchRepo;
-    private final RequestContext requestContext;
 
     private final CategoryRepo categoryRepo;
     private final BusinessRepo businessRepo;
+    private final SubscriptionService subscriptionService;
+    private final PlanLimitService planLimitService;
 
     public ProductServiceImpl(
             ProductRepo productRepo,
             SupplierRepo supplierRepo,
             ProductBatchRepo batchRepo,
-            RequestContext requestContext,
             CategoryRepo categoryRepo,
-            BusinessRepo businessRepo
-    ) {
+            BusinessRepo businessRepo,
+            SubscriptionService subscriptionService,
+            PlanLimitService planLimitService) {
         this.productRepo = productRepo;
         this.supplierRepo = supplierRepo;
         this.batchRepo = batchRepo;
-        this.requestContext = requestContext;
         this.categoryRepo = categoryRepo;
         this.businessRepo = businessRepo;
+        this.subscriptionService = subscriptionService;
+        this.planLimitService = planLimitService;
     }
 
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) throw new RuntimeException("Business context missing (JWT token required)");
-        return businessId;
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null)
+            throw new RuntimeException("Business context missing (JWT required)");
+        return principal.getBusinessId();
     }
 
     // ✅ Only ACTIVE product
@@ -61,7 +67,8 @@ public class ProductServiceImpl implements ProductService {
     }
 
     private Category resolveCategory(Long categoryId, Long businessId) {
-        if (categoryId == null) return null;
+        if (categoryId == null)
+            return null;
         return categoryRepo.findByIdAndBusinessId(categoryId, businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id " + categoryId));
     }
@@ -70,7 +77,8 @@ public class ProductServiceImpl implements ProductService {
         String cleaned = (text == null ? "" : text)
                 .replaceAll("[^A-Za-z0-9]", "")
                 .toUpperCase();
-        if (cleaned.length() >= len) return cleaned.substring(0, len);
+        if (cleaned.length() >= len)
+            return cleaned.substring(0, len);
         return (cleaned + "XXX").substring(0, len);
     }
 
@@ -91,8 +99,11 @@ public class ProductServiceImpl implements ProductService {
         product.setCategory(resolveCategory(dto.getCategoryId(), businessId));
 
         if (dto.getSupplierId() != null) {
-            Supplier supplier = supplierRepo.findById(dto.getSupplierId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id " + dto.getSupplierId()));
+            // ✅ Fix: Verify supplier belongs to this business
+            Supplier supplier = supplierRepo.findByIdAndBusinessId(dto.getSupplierId(), businessId)
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException(
+                                    "Supplier not found for this business with id " + dto.getSupplierId()));
             product.setSupplier(supplier);
         } else {
             product.setSupplier(null);
@@ -122,6 +133,18 @@ public class ProductServiceImpl implements ProductService {
     @Transactional
     public ProductsDto createProduct(ProductsDto dto) {
         Long businessId = requireBusinessId();
+
+        // ✅ Plan Limit Check: MAX_PRODUCTS
+        Subscription sub = subscriptionService.getBusinessSubscription(businessId);
+        if (sub != null && sub.getPlan() != null) {
+            Long limit = planLimitService.getLimitValueOrDefault(sub.getPlan().getId(), "MAX_PRODUCTS", -1L);
+            if (limit != -1) {
+                long currentCount = productRepo.countByBusinessId(businessId);
+                if (currentCount >= limit) {
+                    throw new RuntimeException("Product limit reached (" + limit + "). Upgrade your plan.");
+                }
+            }
+        }
 
         Business business = businessRepo.findById(businessId)
                 .orElseThrow(() -> new ResourceNotFoundException("Business not found with id " + businessId));

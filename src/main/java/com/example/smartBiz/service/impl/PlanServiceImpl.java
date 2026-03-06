@@ -78,6 +78,32 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
+    public List<com.example.smartBiz.dto.PlanCardDto> getActivePlanCards() {
+        return planRepo.findAllByStatus(PlanStatus.ACTIVE).stream()
+                .flatMap(plan -> {
+                    java.util.Map<String, Long> limits = planLimitService.getLimitsMap(plan.getId());
+                    return java.util.stream.Stream.of(
+                            new com.example.smartBiz.dto.PlanCardDto(
+                                    plan.getId(),
+                                    plan.getName() + " (Monthly)",
+                                    plan.getMonthlyPrice(),
+                                    "MONTHLY",
+                                    plan.getDescription(),
+                                    plan.getActive(),
+                                    limits),
+                            new com.example.smartBiz.dto.PlanCardDto(
+                                    plan.getId(),
+                                    plan.getName() + " (Yearly)",
+                                    plan.getYearlyPrice(),
+                                    "YEARLY",
+                                    plan.getDescription(),
+                                    plan.getActive(),
+                                    limits));
+                })
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public PlanResponseDto updatePlanStatus(Long planId, String status) {
         Plan plan = planRepo.findById(planId)

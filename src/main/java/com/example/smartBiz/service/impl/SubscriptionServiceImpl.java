@@ -168,4 +168,43 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             subscriptionRepo.save(sub);
         }
     }
+
+    @Override
+    public com.example.smartBiz.dto.MyPlanDto getOwnerPlan(Long businessId) {
+        // Auto-expire check before fetching
+        refreshExpiryIfNeeded(businessId);
+
+        Optional<Subscription> subOpt = subscriptionRepo
+                .findFirstByBusinessIdOrderByCreatedAtDesc(businessId);
+
+        if (subOpt.isEmpty()) {
+            return new com.example.smartBiz.dto.MyPlanDto(null, null, null, "NONE");
+        }
+
+        Subscription sub = subOpt.get();
+        String status = "ACTIVE";
+        if (sub.getStatus() == SubscriptionStatus.EXPIRED) {
+            status = "EXPIRED";
+        } else if (sub.getStatus() == SubscriptionStatus.CANCELED) {
+            // If canceled but not expired yet, it might still be active?
+            // Requirements say: If assigned but expired -> status="EXPIRED", Else ->
+            // "ACTIVE"
+            // For now, let's stick to EXPIRED vs ACTIVE check.
+            if (sub.getEndAt() != null && sub.getEndAt().isBefore(LocalDateTime.now())) {
+                status = "EXPIRED";
+            }
+        }
+
+        return new com.example.smartBiz.dto.MyPlanDto(
+                sub.getPlan().getId(),
+                sub.getPlan().getName(),
+                sub.getEndAt(),
+                status);
+    }
+
+    @Override
+    public Subscription getBusinessSubscription(Long businessId) {
+        return subscriptionRepo.findByBusinessIdAndStatus(businessId, SubscriptionStatus.ACTIVE)
+                .orElse(null);
+    }
 }

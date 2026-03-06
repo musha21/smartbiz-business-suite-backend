@@ -17,6 +17,10 @@ public class Business {
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable=false)
+    @Column(nullable = false)
     private Boolean active = true;
+
+    private Long planId;
+    private java.time.LocalDateTime subscriptionStart;
+    private java.time.LocalDateTime subscriptionEnd;
 }

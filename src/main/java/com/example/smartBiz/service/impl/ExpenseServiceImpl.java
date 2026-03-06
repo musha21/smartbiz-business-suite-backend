@@ -4,7 +4,7 @@ import com.example.smartBiz.dto.ExpenseDto;
 import com.example.smartBiz.entity.Expense;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.ExpenseRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.ExpenseService;
 import org.springframework.stereotype.Service;
 
@@ -15,20 +15,18 @@ import java.util.List;
 public class ExpenseServiceImpl implements ExpenseService {
 
     private final ExpenseRepo expenseRepository;
-    private final RequestContext requestContext;
 
-    public ExpenseServiceImpl(ExpenseRepo expenseRepository, RequestContext requestContext) {
+    public ExpenseServiceImpl(ExpenseRepo expenseRepository) {
         this.expenseRepository = expenseRepository;
-        this.requestContext = requestContext;
     }
 
     // ✅ helper (reduce duplicate)
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new RuntimeException("Business context missing (JWT required)");
         }
-        return businessId;
+        return principal.getBusinessId();
     }
 
     // ✅ ownership check
@@ -61,7 +59,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         Long businessId = requireBusinessId();
         Expense expense = requireOwnedExpense(id, businessId);
 
-        if (dto.getExpenseDate() != null) expense.setExpenseDate(dto.getExpenseDate());
+        if (dto.getExpenseDate() != null)
+            expense.setExpenseDate(dto.getExpenseDate());
         expense.setCategory(dto.getCategory());
         expense.setAmount(dto.getAmount());
         expense.setNote(dto.getNote());

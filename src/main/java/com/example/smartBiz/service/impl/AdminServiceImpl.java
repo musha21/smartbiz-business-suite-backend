@@ -38,7 +38,7 @@ public class AdminServiceImpl implements AdminService {
                 .totalBusinesses(businessRepo.count())
                 .activeBusinesses(businessRepo.countActiveBusinesses())
                 .totalUsers(userRepo.count())
-                .invoicesThisMonth(invoiceRepo.countInvoicesInMonth(startOfMonth, now))
+                .invoicesThisMonth(invoiceRepo.countByInvoiceDateBetween(startOfMonth, now))
                 .paidRevenueThisMonth(invoiceRepo.sumTotalByStatusBetween(com.example.smartBiz.enums.InvoiceStatus.PAID,
                         startOfMonth, now))
                 .paidBusinesses(subscriptionRepo.countActivePaidSubscriptions())

@@ -6,7 +6,7 @@ import com.example.smartBiz.dto.UnpaidInvoiceDto;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.repository.InvoiceItemRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.ReportService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -20,22 +20,19 @@ public class ReportServiceImpl implements ReportService {
 
     private final InvoiceRepo invoiceRepository;
     private final InvoiceItemRepo invoiceItemRepository;
-    private final RequestContext requestContext;
 
     public ReportServiceImpl(InvoiceRepo invoiceRepository,
-                             InvoiceItemRepo invoiceItemRepository,
-                             RequestContext requestContext) {
+            InvoiceItemRepo invoiceItemRepository) {
         this.invoiceRepository = invoiceRepository;
         this.invoiceItemRepository = invoiceItemRepository;
-        this.requestContext = requestContext;
     }
 
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null) {
             throw new RuntimeException("Business context missing (JWT required)");
         }
-        return businessId;
+        return principal.getBusinessId();
     }
 
     @Override
@@ -47,8 +44,7 @@ public class ReportServiceImpl implements ReportService {
         LocalDateTime end = ym.atEndOfMonth().atTime(23, 59, 59);
 
         double revenue = invoiceRepository.sumTotalByStatusBetweenAndBusinessId(
-                InvoiceStatus.PAID, start, end, businessId
-        );
+                InvoiceStatus.PAID, start, end, businessId);
 
         // ✅ matches DTO: (year, month, paidRevenue)
         return new MonthlyRevenueDto(year, month, revenue);
@@ -64,8 +60,7 @@ public class ReportServiceImpl implements ReportService {
 
         return invoiceItemRepository.findTopProductsByBusiness(
                 InvoiceStatus.PAID, start, end, businessId,
-                PageRequest.of(0, limit)
-        );
+                PageRequest.of(0, limit));
     }
 
     @Override
@@ -81,7 +76,6 @@ public class ReportServiceImpl implements ReportService {
                 start,
                 end,
                 businessId,
-                PageRequest.of(0, limit)
-        );
+                PageRequest.of(0, limit));
     }
 }

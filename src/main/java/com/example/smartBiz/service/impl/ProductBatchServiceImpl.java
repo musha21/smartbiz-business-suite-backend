@@ -1,6 +1,5 @@
 package com.example.smartBiz.service.impl;
 
-
 import com.example.smartBiz.dto.BatchCreateDto;
 import com.example.smartBiz.dto.ProductBatchDto;
 import com.example.smartBiz.entity.ProductBatch;
@@ -8,7 +7,7 @@ import com.example.smartBiz.entity.Products;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.ProductBatchRepo;
 import com.example.smartBiz.repository.ProductRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.ProductBatchService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,18 +19,17 @@ public class ProductBatchServiceImpl implements ProductBatchService {
 
     private final ProductBatchRepo batchRepo;
     private final ProductRepo productRepo;
-    private final RequestContext requestContext;
 
-    public ProductBatchServiceImpl(ProductBatchRepo batchRepo, ProductRepo productRepo, RequestContext requestContext) {
+    public ProductBatchServiceImpl(ProductBatchRepo batchRepo, ProductRepo productRepo) {
         this.batchRepo = batchRepo;
         this.productRepo = productRepo;
-        this.requestContext = requestContext;
     }
 
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) throw new RuntimeException("Business context missing (JWT required)");
-        return businessId;
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null)
+            throw new RuntimeException("Business context missing (JWT required)");
+        return principal.getBusinessId();
     }
 
     private Products requireOwnedProduct(Long productId, Long businessId) {
@@ -50,8 +48,7 @@ public class ProductBatchServiceImpl implements ProductBatchService {
                 b.getProduct().getId(),
                 b.getBatchNumber(),
                 b.getQtyAvailable(),
-                b.getCreatedAt()
-        );
+                b.getCreatedAt());
     }
 
     // ✅ Add stock to batch AND also update product.stock_qty
@@ -61,7 +58,8 @@ public class ProductBatchServiceImpl implements ProductBatchService {
 
         Long businessId = requireBusinessId();
 
-        if (dto.getProductId() == null) throw new ResourceNotFoundException("productId is required");
+        if (dto.getProductId() == null)
+            throw new ResourceNotFoundException("productId is required");
         if (dto.getBatchNumber() == null || dto.getBatchNumber().isBlank())
             throw new ResourceNotFoundException("batchNumber is required");
         if (dto.getQty() == null || dto.getQty() <= 0)
@@ -84,13 +82,15 @@ public class ProductBatchServiceImpl implements ProductBatchService {
         int addQty = dto.getQty();
 
         Integer currentBatchQty = batch.getQtyAvailable();
-        if (currentBatchQty == null) currentBatchQty = 0;
+        if (currentBatchQty == null)
+            currentBatchQty = 0;
         batch.setQtyAvailable(currentBatchQty + addQty);
         ProductBatch savedBatch = batchRepo.save(batch);
 
         // ✅ update product total stock too
         Integer productStock = product.getStock_qty();
-        if (productStock == null) productStock = 0;
+        if (productStock == null)
+            productStock = 0;
         product.setStock_qty(productStock + addQty);
         productRepo.save(product);
 
@@ -125,7 +125,8 @@ public class ProductBatchServiceImpl implements ProductBatchService {
                 .orElseThrow(() -> new ResourceNotFoundException("Batch not found: " + batchId));
 
         Integer qty = b.getQtyAvailable();
-        if (qty == null) qty = 0;
+        if (qty == null)
+            qty = 0;
         if (qty > 0) {
             throw new ResourceNotFoundException("Cannot delete batch with stock > 0");
         }

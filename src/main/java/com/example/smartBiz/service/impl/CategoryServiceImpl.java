@@ -4,7 +4,7 @@ package com.example.smartBiz.service.impl;
 import com.example.smartBiz.dto.CategoryDto;
 import com.example.smartBiz.entity.Category;
 import com.example.smartBiz.repository.CategoryRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.CategoryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,17 +16,16 @@ import java.util.List;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepo categoryRepo;
-    private final RequestContext requestContext;
 
-    public CategoryServiceImpl(CategoryRepo categoryRepo, RequestContext requestContext) {
+    public CategoryServiceImpl(CategoryRepo categoryRepo) {
         this.categoryRepo = categoryRepo;
-        this.requestContext = requestContext;
     }
 
     private Long requireBusinessId() {
-        Long businessId = requestContext.getBusinessId();
-        if (businessId == null) throw new RuntimeException("Business context missing (JWT token required)");
-        return businessId;
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null || principal.getBusinessId() == null)
+            throw new RuntimeException("Business context missing (JWT token required)");
+        return principal.getBusinessId();
     }
 
     @Override
@@ -34,7 +33,8 @@ public class CategoryServiceImpl implements CategoryService {
         Long businessId = requireBusinessId();
 
         String name = dto.getName() == null ? "" : dto.getName().trim();
-        if (name.isEmpty()) throw new RuntimeException("Category name is required");
+        if (name.isEmpty())
+            throw new RuntimeException("Category name is required");
 
         if (categoryRepo.existsByBusinessIdAndNameIgnoreCase(businessId, name)) {
             throw new RuntimeException("Category already exists");

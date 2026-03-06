@@ -14,4 +14,8 @@ public interface SubscriptionService {
 
     /** Mark subscription EXPIRED if endAt has passed */
     void refreshExpiryIfNeeded(Long businessId);
+
+    com.example.smartBiz.dto.MyPlanDto getOwnerPlan(Long businessId);
+
+    Subscription getBusinessSubscription(Long businessId);
 }

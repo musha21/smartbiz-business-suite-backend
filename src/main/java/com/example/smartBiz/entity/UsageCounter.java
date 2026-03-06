@@ -7,8 +7,7 @@ import lombok.*;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "usage_counters",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"business_id", "year_month"}))
+@Table(name = "usage_counters", uniqueConstraints = @UniqueConstraint(columnNames = { "business_id", "year_month" }))
 public class UsageCounter {
 
     @Id
@@ -25,4 +24,8 @@ public class UsageCounter {
     /** Number of invoices created in this month */
     @Column(nullable = false)
     private Long invoiceCount = 0L;
+
+    /** Number of AI generations in this month */
+    @Column(nullable = false)
+    private Long aiCount = 0L;
 }

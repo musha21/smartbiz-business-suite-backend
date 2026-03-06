@@ -90,8 +90,9 @@ public class JwtFilter extends OncePerRequestFilter {
                 System.out.println("[DEBUG JWT] User: " + userId + " | Authorities: " + authorities);
 
                 // ✅ 4) Set Authentication
+                CustomUserPrincipal principal = new CustomUserPrincipal(userId, businessId);
                 var authentication = new UsernamePasswordAuthenticationToken(
-                        userId,
+                        principal,
                         null,
                         authorities);
 

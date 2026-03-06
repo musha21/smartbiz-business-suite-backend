@@ -6,8 +6,9 @@ import com.example.smartBiz.entity.InvoiceItem;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.BusinessRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
-import com.example.smartBiz.security.RequestContext;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.InvoicePdfService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.lowagie.text.*;
 import com.lowagie.text.Image;
 import com.lowagie.text.pdf.*;
@@ -17,86 +18,78 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class InvoicePdfServiceImpl implements InvoicePdfService {
 
     private final InvoiceRepo invoiceRepository;
     private final BusinessRepo businessRepo;
-    private final RequestContext requestContext;
+
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
     public InvoicePdfServiceImpl(
             InvoiceRepo invoiceRepository,
-            BusinessRepo businessRepo,
-            RequestContext requestContext) {
+            BusinessRepo businessRepo) {
         this.invoiceRepository = invoiceRepository;
         this.businessRepo = businessRepo;
-        this.requestContext = requestContext;
     }
 
     @Override
     public byte[] generateInvoicePdf(Long invoiceId) {
 
-        // ✅ get JWT context
-        Long businessId = requestContext.getBusinessId();
-        String role = requestContext.getRole(); // make sure you have getRole() in RequestContext
-
-        if (role == null) {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        if (principal == null)
             throw new RuntimeException("Unauthorized");
-        }
 
-        // ✅ ADMIN can access any invoice
-        if (!"ADMIN".equals(role)) {
-            if (businessId == null) {
+        Long businessId = principal.getBusinessId();
+
+        // ADMIN bypasses ownership checks
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            if (businessId == null)
                 throw new ResourceNotFoundException("Business context missing (JWT required)");
-            }
 
-            // ✅ Business must be ACTIVE
             Business b = businessRepo.findById(businessId)
                     .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
-            if (Boolean.FALSE.equals(b.getActive())) {
-                throw new RuntimeException("Business disabled");
-            }
+            if (Boolean.FALSE.equals(b.getActive()))
+                throw new RuntimeException("Business account is disabled");
         }
 
-        // ✅ fetch invoice with items + products + customer (prevents
-        // LazyInitializationException)
         Invoice invoice = invoiceRepository.findInvoiceForPdf(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
 
-        // ✅ Ownership check (only for non-admin)
-        if (!"ADMIN".equals(role)) {
-            if (!businessId.equals(invoice.getBusinessId())) {
-                throw new RuntimeException("Access denied: invoice not in your business");
-            }
-        }
+        if (!isAdmin && !businessId.equals(invoice.getBusinessId()))
+            throw new RuntimeException("Access denied: invoice not in your business");
 
+        // ── PDF generation ────────────────────────────────────────────────────
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
             Document document = new Document(PageSize.A4, 36, 36, 36, 36);
             PdfWriter writer = PdfWriter.getInstance(document, baos);
             document.open();
 
-            // --- LOGO (Classpath) ---
+            // Logo
             try {
                 ClassPathResource resource = new ClassPathResource("static/mush.png");
                 try (InputStream in = resource.getInputStream()) {
-                    byte[] bytes = in.readAllBytes();
-                    Image logo = Image.getInstance(bytes);
+                    Image logo = Image.getInstance(in.readAllBytes());
                     logo.scaleToFit(90, 90);
                     logo.setAlignment(Image.ALIGN_RIGHT);
                     document.add(logo);
                 }
             } catch (Exception ignored) {
+                // Logo is optional — silently skip if missing
             }
 
-            // 1) Company Header
-            String companyName = "SmartBiz";
+            // ── 1. Company header ─────────────────────────────────────────────
             Font companyFont = new Font(Font.HELVETICA, 16, Font.BOLD);
             Font small = new Font(Font.HELVETICA, 10);
 
-            Paragraph company = new Paragraph(companyName, companyFont);
+            Paragraph company = new Paragraph("SmartBiz", companyFont);
             company.setAlignment(Element.ALIGN_LEFT);
 
             Paragraph tagline = new Paragraph("AI-Powered Business Management Suite", small);
@@ -107,29 +100,40 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             document.add(new Paragraph(" "));
             addLine(document);
 
-            // 2) Title + Paid Stamp
+            // ── 2. Title + PAID stamp ─────────────────────────────────────────
             Font titleFont = new Font(Font.HELVETICA, 18, Font.BOLD);
             Paragraph title = new Paragraph("INVOICE", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             document.add(title);
 
-            if (invoice.getStatus() != null && invoice.getStatus().name().equalsIgnoreCase("PAID")) {
+            boolean isPaid = invoice.getStatus() != null
+                    && "PAID".equalsIgnoreCase(invoice.getStatus().name());
+            if (isPaid)
                 addPaidStamp(document);
-            }
 
             document.add(new Paragraph(" "));
 
-            // 3) Invoice Details
-            PdfPTable infoTable = new PdfPTable(2);
-            infoTable.setWidthPercentage(100);
-            infoTable.setWidths(new float[] { 1f, 1f });
-
+            // ── 3. Invoice details ────────────────────────────────────────────
             Font label = new Font(Font.HELVETICA, 10, Font.BOLD);
             Font value = new Font(Font.HELVETICA, 10);
 
             String customerName = safe(invoice.getCustomer().getName());
             String customerPhone = safe(invoice.getCustomer().getPhone());
             String customerAddress = safe(invoice.getCustomer().getAddress());
+
+            // FIX: format invoiceDate properly instead of calling String.valueOf()
+            String invoiceDate = invoice.getInvoiceDate() != null
+                    ? invoice.getInvoiceDate().format(DATE_FMT)
+                    : "N/A";
+
+            // FIX: null-safe status — guard against null before calling .name()
+            String statusText = invoice.getStatus() != null
+                    ? invoice.getStatus().name()
+                    : "UNKNOWN";
+
+            PdfPTable infoTable = new PdfPTable(2);
+            infoTable.setWidthPercentage(100);
+            infoTable.setWidths(new float[] { 1f, 1f });
 
             PdfPCell left = new PdfPCell();
             left.setBorder(Rectangle.NO_BORDER);
@@ -143,10 +147,9 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             PdfPCell right = new PdfPCell();
             right.setBorder(Rectangle.NO_BORDER);
             right.setHorizontalAlignment(Element.ALIGN_RIGHT);
-
             right.addElement(rightAligned("Invoice No: " + safe(invoice.getInvoiceNumber()), label));
-            right.addElement(rightAligned("Date: " + String.valueOf(invoice.getInvoiceDate()), value));
-            right.addElement(rightAligned("Status: " + invoice.getStatus().name(), value));
+            right.addElement(rightAligned("Date: " + invoiceDate, value));
+            right.addElement(rightAligned("Status: " + statusText, value));
 
             infoTable.addCell(left);
             infoTable.addCell(right);
@@ -156,7 +159,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             addLine(document);
             document.add(new Paragraph(" "));
 
-            // 4) Items Table
+            // ── 4. Items table ────────────────────────────────────────────────
             PdfPTable table = new PdfPTable(5);
             table.setWidthPercentage(100);
             table.setSpacingBefore(5);
@@ -170,8 +173,13 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
             int index = 1;
             for (InvoiceItem item : invoice.getItems()) {
+                // FIX: null-safe product name — item.getProduct() could be null
+                String productName = (item.getProduct() != null)
+                        ? safe(item.getProduct().getName())
+                        : "Unknown Product";
+
                 table.addCell(bodyCell(String.valueOf(index++), Element.ALIGN_CENTER));
-                table.addCell(bodyCell(safe(item.getProduct().getName()), Element.ALIGN_LEFT));
+                table.addCell(bodyCell(productName, Element.ALIGN_LEFT));
                 table.addCell(bodyCell(String.valueOf(item.getQuantity()), Element.ALIGN_CENTER));
                 table.addCell(bodyCell(formatMoney(item.getUnitPrice()), Element.ALIGN_RIGHT));
                 table.addCell(bodyCell(formatMoney(item.getLineTotal()), Element.ALIGN_RIGHT));
@@ -179,7 +187,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
             document.add(table);
 
-            // 5) Totals
+            // ── 5. Grand total ────────────────────────────────────────────────
             document.add(new Paragraph(" "));
 
             PdfPTable totals = new PdfPTable(2);
@@ -191,7 +199,6 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount()), label));
 
             document.add(totals);
-
             document.add(new Paragraph(" "));
             addLine(document);
             document.add(new Paragraph("Thank you!", small));
@@ -202,9 +209,11 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             return baos.toByteArray();
 
         } catch (Exception e) {
-            throw new RuntimeException("PDF generation failed: " + e.getMessage());
+            throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);
         }
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void addLine(Document document) throws DocumentException {
         LineSeparator line = new LineSeparator();
@@ -236,8 +245,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
     }
 
     private PdfPCell bodyCell(String text, int align) {
-        Font bodyFont = new Font(Font.HELVETICA, 10);
-        PdfPCell cell = new PdfPCell(new Phrase(text, bodyFont));
+        PdfPCell cell = new PdfPCell(new Phrase(text, new Font(Font.HELVETICA, 10)));
         cell.setHorizontalAlignment(align);
         cell.setPadding(7);
         return cell;
@@ -259,9 +267,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
     }
 
     private String formatMoney(Double v) {
-        if (v == null)
-            return "0.00";
-        return String.format("%.2f", v);
+        return v == null ? "0.00" : String.format("%.2f", v);
     }
 
     private String safe(String v) {

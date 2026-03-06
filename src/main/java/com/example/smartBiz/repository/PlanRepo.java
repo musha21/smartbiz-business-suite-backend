@@ -13,5 +13,7 @@ public interface PlanRepo extends JpaRepository<Plan, Long> {
 
     List<Plan> findByActiveTrue();
 
+    List<Plan> findByActiveTrueAndStatus(PlanStatus status);
+
     List<Plan> findAllByStatus(PlanStatus status);
 }
