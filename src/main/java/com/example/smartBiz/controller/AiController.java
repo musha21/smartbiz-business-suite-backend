@@ -72,9 +72,9 @@ public class AiController {
                 dto.getTo(),
                 dto.getPrompt()));
     }
-
+    // ✅ FIXED
     @PostMapping("/marketing/post")
-    public ResponseEntity<?> generatePost(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> generatePost(@RequestBody Map<String, Object> request) {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null)
             return ResponseEntity.status(401).body("Unauthorized");
@@ -84,7 +84,8 @@ public class AiController {
             return ResponseEntity.status(403).body("AI credit limit reached for this month.");
         }
 
-        String topic = request.getOrDefault("topic", "New Arrivals");
+        // ✅ Safe cast - topic is a plain string
+        String topic = request.getOrDefault("topic", "New Arrivals").toString();
         String post = aiService.generateMarketingPost(businessId, topic);
         return ResponseEntity.ok(Map.of("post", post));
     }

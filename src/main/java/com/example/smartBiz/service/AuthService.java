@@ -6,5 +6,8 @@ import com.example.smartBiz.dto.RegisterRequestDto;
 
 public interface AuthService {
     AuthResponseDto register(RegisterRequestDto dto);
+
     AuthResponseDto login(LoginRequestDto dto);
+
+    AuthResponseDto getMe(Long userId);
 }

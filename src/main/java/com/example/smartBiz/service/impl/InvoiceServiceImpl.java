@@ -245,8 +245,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
         dto.setTotalAmount(invoice.getTotalAmount());
-        dto.setCustomerId(invoice.getCustomer().getId());
-        dto.setCustomerName(invoice.getCustomer().getName()); // ✅ flat field — frontend reads this directly
+
+        // ✅ Add full customer details
+        Customer c = invoice.getCustomer();
+        dto.setCustomer(new CustomerDto(
+                c.getId(),
+                c.getName(),
+                c.getEmail(),
+                c.getPhone(),
+                c.getAddress()));
 
         List<InvoiceItemResponseDto> itemDtos = invoice.getItems().stream().map(it -> {
             InvoiceItemResponseDto i = new InvoiceItemResponseDto();

@@ -3,6 +3,7 @@ package com.example.smartBiz.controller;
 import com.example.smartBiz.dto.AuthResponseDto;
 import com.example.smartBiz.dto.LoginRequestDto;
 import com.example.smartBiz.dto.RegisterRequestDto;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -27,5 +28,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDto> login(@Valid @RequestBody LoginRequestDto req) {
         return ResponseEntity.ok(authService.login(req));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponseDto> getMe() {
+        CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+        return ResponseEntity.ok(authService.getMe(principal.getUserId()));
     }
 }

@@ -44,7 +44,8 @@ public class SecurityConfig {
                 // ✅ Allow preflight + auth endpoints
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
-                        .requestMatchers("/v1/api/auth/**").permitAll() // ✅ login/register
+                        .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register").permitAll() // ✅ login/register
+                                                                                                    // only
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
                                                                                                               // Swagger
                         .anyRequest().authenticated())

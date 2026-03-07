@@ -12,8 +12,7 @@ public class InvoiceResponseDto {
     private String status;
     private Double totalAmount;
 
-    private Long customerId;
-    private String customerName;
+    private CustomerDto customer; // ✅ full customer details
 
     private List<InvoiceItemResponseDto> items;
 }

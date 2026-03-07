@@ -72,16 +72,15 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(
                 savedUser.getId(),
                 savedBusiness.getId(),
-                savedUser.getRole().name()
-        );
+                savedUser.getRole().name());
 
         return new AuthResponseDto(
                 token,
                 savedUser.getId(),
                 savedBusiness.getId(),
                 savedUser.getRole().name(),
-                savedUser.getName()
-        );
+                savedUser.getName(),
+                savedBusiness.getName());
     }
 
     @Override
@@ -119,15 +118,31 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(
                 user.getId(),
                 businessId,
-                user.getRole().name()
-        );
+                user.getRole().name());
 
         return new AuthResponseDto(
                 token,
                 user.getId(),
                 businessId,
                 user.getRole().name(),
-                user.getName()
-        );
+                user.getName(),
+                user.getBusiness() != null ? user.getBusiness().getName() : null);
+    }
+
+    @Override
+    public AuthResponseDto getMe(Long userId) {
+        AppUser user = userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("USER_NOT_FOUND"));
+
+        Long businessId = (user.getBusiness() != null) ? user.getBusiness().getId() : null;
+        String businessName = (user.getBusiness() != null) ? user.getBusiness().getName() : null;
+
+        return new AuthResponseDto(
+                null, // no new token needed for /me
+                user.getId(),
+                businessId,
+                user.getRole().name(),
+                user.getName(),
+                businessName);
     }
 }
