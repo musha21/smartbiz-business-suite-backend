@@ -27,6 +27,8 @@ public interface SubscriptionRepo extends JpaRepository<Subscription, Long> {
     Long countExpiringSoon(@org.springframework.data.repository.query.Param("now") java.time.LocalDateTime now,
             @org.springframework.data.repository.query.Param("soon") java.time.LocalDateTime soon);
 
+    Long countByCreatedAtBetween(java.time.LocalDateTime start, java.time.LocalDateTime end);
+
     @org.springframework.data.jpa.repository.Query("""
                 SELECT new com.example.smartBiz.dto.ExpiringSubscriptionDTO(
                     b.name, p.name, s.endAt, s.status

@@ -13,7 +13,9 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "invoices", indexes = {
-        @Index(name = "idx_invoices_business_status_date", columnList = "businessId, status, invoiceDate")
+        @Index(name = "idx_invoices_business_status_date", columnList = "businessId, status, invoiceDate"),
+        @Index(name = "idx_invoice_date", columnList = "invoiceDate"),
+        @Index(name = "idx_invoice_business", columnList = "businessId")
 })
 public class Invoice {
 

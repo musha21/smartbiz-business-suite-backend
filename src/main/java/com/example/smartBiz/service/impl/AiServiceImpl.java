@@ -6,7 +6,9 @@ import com.example.smartBiz.dto.AnalyticsResponseDto;
 import com.example.smartBiz.dto.UnpaidInvoiceDto;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.exception.AiException;
+import com.example.smartBiz.entity.AiUsageLog;
 import com.example.smartBiz.entity.BusinessProfile;
+import com.example.smartBiz.repository.AiUsageLogRepo;
 import com.example.smartBiz.repository.BusinessProfileRepo;
 import com.example.smartBiz.repository.BusinessRepo;
 import com.example.smartBiz.repository.ExpenseRepo;
@@ -14,6 +16,7 @@ import com.example.smartBiz.repository.InvoiceItemRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
 import com.example.smartBiz.repository.ProductRepo;
 import com.example.smartBiz.repository.projection.TopProductRow;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.AiService;
 import com.example.smartBiz.service.AuditLogService;
 import com.example.smartBiz.service.UsageCounterService;
@@ -47,6 +50,7 @@ public class AiServiceImpl implements AiService {
         private final BusinessRepo businessRepo;
         private final BusinessProfileRepo businessProfileRepo;
         private final InvoiceItemRepo invoiceItemRepo;
+        private final AiUsageLogRepo aiUsageLogRepo;
 
         public AiServiceImpl(RestTemplate restTemplate,
                         InvoiceRepo invoiceRepo,
@@ -57,7 +61,8 @@ public class AiServiceImpl implements AiService {
                         OpenAiConfig openAiConfig,
                         BusinessRepo businessRepo,
                         BusinessProfileRepo businessProfileRepo,
-                        InvoiceItemRepo invoiceItemRepo) {
+                        InvoiceItemRepo invoiceItemRepo,
+                        AiUsageLogRepo aiUsageLogRepo) {
                 this.restTemplate = restTemplate;
                 this.invoiceRepo = invoiceRepo;
                 this.productRepo = productRepo;
@@ -68,6 +73,19 @@ public class AiServiceImpl implements AiService {
                 this.businessRepo = businessRepo;
                 this.businessProfileRepo = businessProfileRepo;
                 this.invoiceItemRepo = invoiceItemRepo;
+                this.aiUsageLogRepo = aiUsageLogRepo;
+        }
+
+        private void logAiUsage(Long businessId, String feature) {
+                CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+                Long userId = (principal != null) ? principal.getUserId() : 0L;
+                
+                aiUsageLogRepo.save(AiUsageLog.builder()
+                        .businessId(businessId)
+                        .userId(userId)
+                        .feature(feature)
+                        .creditsUsed(1L)
+                        .build());
         }
 
         // ─────────────────────────────────────────────
@@ -313,6 +331,7 @@ public class AiServiceImpl implements AiService {
 
                 auditLogService.info("Generating professional AI business analysis for business: " + businessId);
                 usageCounterService.incrementAiCount(businessId);
+                logAiUsage(businessId, "REPORT");
 
                 String aiReport = callOpenAi(systemPrompt, userPrompt);
 
@@ -360,6 +379,7 @@ public class AiServiceImpl implements AiService {
 
                 auditLogService.info("Generating AI marketing post for business: " + businessId);
                 usageCounterService.incrementAiCount(businessId);
+                logAiUsage(businessId, "POST");
                 return callOpenAi(systemPrompt, userPrompt);
         }
 
@@ -444,6 +464,7 @@ public class AiServiceImpl implements AiService {
                                 " | category=" + category + " | tone=" + tone);
 
                 usageCounterService.incrementAiCount(businessId);
+                logAiUsage(businessId, "EMAIL");
 
                 return callOpenAi(systemPrompt, userPrompt);
         }

@@ -105,6 +105,13 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         sub.setStartAt(now);
         sub.setEndAt(endAt);
 
+        // ✅ Sync business entity for easier analytics/filtering
+        business.setPlanId(plan.getId());
+        business.setPlan(plan.getName() != null ? plan.getName().trim() : null);
+        business.setSubscriptionStart(now);
+        business.setSubscriptionEnd(endAt);
+        businessRepo.save(business);
+
         return subscriptionRepo.save(sub);
     }
 

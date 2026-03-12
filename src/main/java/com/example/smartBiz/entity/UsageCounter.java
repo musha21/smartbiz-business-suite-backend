@@ -7,7 +7,12 @@ import lombok.*;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "usage_counters", uniqueConstraints = @UniqueConstraint(columnNames = { "business_id", "year_month" }))
+@Table(name = "usage_counters",
+        uniqueConstraints = @UniqueConstraint(columnNames = { "business_id", "year_month" }),
+        indexes = {
+                @Index(name = "idx_usage_business", columnList = "business_id"),
+                @Index(name = "idx_usage_period", columnList = "year_month")
+        })
 public class UsageCounter {
 
     @Id

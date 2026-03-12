@@ -38,4 +38,7 @@ public interface ProductRepo extends JpaRepository<Products, Long> {
 
         // ✅ Optional: Archived list (if you want archive page)
         List<Products> findByBusinessIdAndDeletedAtIsNotNull(Long businessId);
+
+        @Query("SELECT COUNT(p) FROM Products p WHERE p.deletedAt IS NULL")
+        long countAllActive();
 }

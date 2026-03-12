@@ -7,7 +7,9 @@ import lombok.*;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "businesses")
+@Table(name = "businesses", indexes = {
+        @Index(name = "idx_business_created_at", columnList = "createdAt")
+})
 public class Business {
 
     @Id
@@ -21,6 +23,14 @@ public class Business {
     private Boolean active = true;
 
     private Long planId;
+    private String plan;
     private java.time.LocalDateTime subscriptionStart;
     private java.time.LocalDateTime subscriptionEnd;
+
+    private java.time.LocalDateTime createdAt;
+
+    @PrePersist
+    public void onCreate() {
+        this.createdAt = java.time.LocalDateTime.now();
+    }
 }
