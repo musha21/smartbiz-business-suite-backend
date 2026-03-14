@@ -15,4 +15,7 @@ public class InvoiceResponseDto {
     private CustomerDto customer; // ✅ full customer details
 
     private List<InvoiceItemResponseDto> items;
+
+    private Boolean archived;
+    private LocalDateTime archivedAt;
 }

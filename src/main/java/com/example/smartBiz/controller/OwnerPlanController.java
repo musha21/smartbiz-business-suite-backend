@@ -76,7 +76,7 @@ public class OwnerPlanController {
                 .invoicesLimit(
                         planId != null ? planLimitService.getLimitValueOrDefault(planId, "INVOICES_PER_MONTH", -1L)
                                 : -1L)
-                .customersUsed(customerRepo.countByBusinessId(businessId))
+                .customersUsed(customerRepo.countByBusinessIdAndArchivedFalse(businessId))
                 .customersLimit(
                         planId != null ? planLimitService.getLimitValueOrDefault(planId, "MAX_CUSTOMERS", -1L) : -1L)
                 .productsUsed(productRepo.countByBusinessId(businessId))

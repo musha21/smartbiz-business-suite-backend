@@ -1,8 +1,20 @@
 package com.example.smartBiz.entity;
 
+import com.example.smartBiz.entity.Customer;
+import com.example.smartBiz.entity.InvoiceItem;
 import com.example.smartBiz.enums.InvoiceStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -11,11 +23,12 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
+@Builder
 @Entity
 @Table(name = "invoices", indexes = {
-        @Index(name = "idx_invoices_business_status_date", columnList = "businessId, status, invoiceDate"),
-        @Index(name = "idx_invoice_date", columnList = "invoiceDate"),
-        @Index(name = "idx_invoice_business", columnList = "businessId")
+        @Index(name = "idx_invoices_business_status_date", columnList = "business_id, status, invoice_date"),
+        @Index(name = "idx_invoice_date", columnList = "invoice_date"),
+        @Index(name = "idx_invoice_business", columnList = "business_id")
 })
 public class Invoice {
 
@@ -23,25 +36,41 @@ public class Invoice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String invoiceNumber;
-
-    private LocalDateTime invoiceDate;
-
-    private Double totalAmount;
-
-    @Enumerated(EnumType.STRING)
-    private InvoiceStatus status; // PAID / UNPAID
-
-    // Invoice belongs to ONE customer
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
-
-    @Column(nullable = false)
+    @Column(name = "business_id", nullable = false)
     private Long businessId;
 
-    // Invoice has MANY items
+    @Column(name = "invoice_number", unique = true, nullable = false)
+    @NotBlank(message = "Invoice number is required")
+    private String invoiceNumber;
+
+    @Column(name = "invoice_date")
+    private LocalDateTime invoiceDate;
+
+    @Enumerated(EnumType.STRING)
+    private InvoiceStatus status;
+
+    @Column(nullable = false)
+    private Double totalAmount;              // ✅ was Double
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)  // ✅ add this
+    private Customer customer;
+
+    @Builder.Default                            // ✅ preserves default when using builder
     @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<InvoiceItem> items = new ArrayList<>();
+
+    @Column(name = "archived", nullable = false)
+    private Boolean archived = false;
+
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.invoiceDate == null) {
+            this.invoiceDate = LocalDateTime.now();
+        }
+    }
 }

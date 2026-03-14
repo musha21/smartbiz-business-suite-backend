@@ -23,6 +23,7 @@ public interface InvoiceItemRepo extends JpaRepository<InvoiceItem, Long> {
           JOIN ii.product p
           WHERE inv.businessId = :businessId
             AND inv.status = com.example.smartBiz.enums.InvoiceStatus.PAID
+            AND inv.archived = false
             AND inv.invoiceDate BETWEEN :from AND :to
           GROUP BY p.id, p.name
           ORDER BY SUM(ii.quantity) DESC
@@ -44,6 +45,7 @@ public interface InvoiceItemRepo extends JpaRepository<InvoiceItem, Long> {
           JOIN ii.invoice i
           JOIN ii.product p
           WHERE i.status = :status
+            AND i.archived = false
             AND i.invoiceDate BETWEEN :start AND :end
             AND i.businessId = :businessId
           GROUP BY p.id, p.name

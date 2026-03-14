@@ -23,4 +23,6 @@ public interface BusinessRepo extends JpaRepository<Business, Long> {
 
     @Query("SELECT p.name, (SELECT COUNT(b) FROM Business b WHERE b.active = true AND TRIM(LOWER(b.plan)) = TRIM(LOWER(p.name))) FROM Plan p WHERE p.active = true")
     List<Object[]> countBusinessesGroupByPlan();
+
+    List<Business> findByPlanIsNull();
 }

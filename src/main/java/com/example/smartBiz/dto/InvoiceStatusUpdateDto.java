@@ -8,5 +8,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Data
 public class InvoiceStatusUpdateDto {
-    private String status; // PAID or UNPAID
+    private String status; // DRAFT, PENDING, PAID, CANCELLED
 }

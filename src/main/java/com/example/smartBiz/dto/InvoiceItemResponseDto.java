@@ -11,8 +11,8 @@ public class InvoiceItemResponseDto {
     private Long productId;
     private String productName;
 
-    private Long batchId;         // ✅ NEW
-    private String batchNumber;   // ✅ NEW (nice)
+    private Long batchId; // ✅ NEW
+    private String batchNumber; // ✅ NEW (nice)
 
     private Integer quantity;
     private Double unitPrice;

@@ -29,11 +29,30 @@ public class CustomerController {
         return ResponseEntity.ok(customerService.updateCustomer(id, customerDto));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCustomer(@PathVariable(name = "id") Long id) {
-        customerService.deleteCustomer(id);
+    @GetMapping("/archived")
+    public ResponseEntity<List<CustomerDto>> getArchivedCustomers() {
+        return ResponseEntity.ok(customerService.getArchivedCustomers());
+    }
+
+    @PutMapping("/{id}/archive")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<Void> archiveCustomer(@PathVariable(name = "id") Long id) {
+        customerService.archiveCustomer(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/restore")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<Void> restoreCustomer(@PathVariable(name = "id") Long id) {
+        customerService.restoreCustomer(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // @DeleteMapping("/{id}")
+    // public ResponseEntity<Void> deleteCustomer(@PathVariable(name = "id") Long id) {
+    //     customerService.deleteCustomer(id);
+    //     return ResponseEntity.noContent().build();
+    // }
 
     @GetMapping("/{id}")
     public ResponseEntity<CustomerDto> getCustomerById(@PathVariable(name = "id") Long id) {

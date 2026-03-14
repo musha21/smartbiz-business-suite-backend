@@ -4,10 +4,14 @@ import com.example.smartBiz.dto.AuthResponseDto;
 import com.example.smartBiz.dto.LoginRequestDto;
 import com.example.smartBiz.dto.RegisterRequestDto;
 
-public interface AuthService {
-    AuthResponseDto register(RegisterRequestDto dto);
+import com.example.smartBiz.dto.AuthTokenWrapperDto;
 
-    AuthResponseDto login(LoginRequestDto dto);
+public interface AuthService {
+    AuthTokenWrapperDto register(RegisterRequestDto dto);
+
+    AuthTokenWrapperDto login(LoginRequestDto dto);
 
     AuthResponseDto getMe(Long userId);
+
+    AuthTokenWrapperDto refreshToken(String refreshToken);
 }

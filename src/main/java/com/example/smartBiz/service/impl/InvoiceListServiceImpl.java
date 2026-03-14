@@ -79,11 +79,15 @@ public class InvoiceListServiceImpl implements InvoiceListService {
         dto.setId(inv.getId());
         dto.setInvoiceNumber(inv.getInvoiceNumber());
         dto.setInvoiceDate(inv.getInvoiceDate());
-        dto.setStatus(inv.getStatus().name());
+        dto.setStatus(inv.getStatus() != null ? inv.getStatus().name() : "UNKNOWN");
         dto.setTotalAmount(inv.getTotalAmount());
 
-        dto.setCustomerId(inv.getCustomer().getId());
-        dto.setCustomerName(inv.getCustomer().getName());
+        if (inv.getCustomer() != null) {
+            dto.setCustomerId(inv.getCustomer().getId());
+            dto.setCustomerName(inv.getCustomer().getName());
+        }
+        dto.setArchived(inv.getArchived());
+        dto.setArchivedAt(inv.getArchivedAt());
         return dto;
     }
 }

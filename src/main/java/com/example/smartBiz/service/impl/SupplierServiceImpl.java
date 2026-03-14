@@ -54,6 +54,7 @@ public class SupplierServiceImpl implements SupplierService {
         dto.setEmail(supplier.getEmail());
         dto.setPhone(supplier.getPhone());
         dto.setAddress(supplier.getAddress());
+        dto.setArchived(supplier.getArchived());
         return dto;
     }
 
@@ -82,9 +83,34 @@ public class SupplierServiceImpl implements SupplierService {
 
     @Override
     public void deleteSupplier(Long id) {
+        archiveSupplier(id);
+    }
+
+    @Override
+    public List<SupplierDto> getArchivedSuppliers() {
+        Long businessId = requireBusinessId();
+        return supplierRepository.findByBusinessIdAndArchivedTrue(businessId)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Override
+    public void archiveSupplier(Long id) {
         Long businessId = requireBusinessId();
         Supplier supplier = requireOwnedSupplier(id, businessId);
-        supplierRepository.delete(supplier);
+        supplier.setArchived(true);
+        supplier.setArchivedAt(java.time.LocalDateTime.now());
+        supplierRepository.save(supplier);
+    }
+
+    @Override
+    public void restoreSupplier(Long id) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+        supplier.setArchived(false);
+        supplier.setArchivedAt(null);
+        supplierRepository.save(supplier);
     }
 
     @Override
@@ -98,7 +124,7 @@ public class SupplierServiceImpl implements SupplierService {
     public List<SupplierDto> getAllSuppliers() {
         Long businessId = requireBusinessId();
 
-        return supplierRepository.findByBusinessId(businessId)
+        return supplierRepository.findByBusinessIdAndArchivedFalse(businessId)
                 .stream()
                 .map(this::mapToDto)
                 .toList();

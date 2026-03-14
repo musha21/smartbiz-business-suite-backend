@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SupplierRepo extends JpaRepository<Supplier, Long> {
-    List<Supplier> findByBusinessId(Long businessId);
+    List<Supplier> findByBusinessIdAndArchivedFalse(Long businessId);
+
+    List<Supplier> findByBusinessIdAndArchivedTrue(Long businessId);
 
     Optional<Supplier> findByIdAndBusinessId(Long id, Long businessId);
 }

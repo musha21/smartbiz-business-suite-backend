@@ -7,8 +7,8 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class InvoiceListDto {
     private Long id;
     private String invoiceNumber;
@@ -17,4 +17,6 @@ public class InvoiceListDto {
     private Double totalAmount;
     private Long customerId;
     private String customerName;
+    private Boolean archived;
+    private LocalDateTime archivedAt;
 }

@@ -32,11 +32,30 @@ public class SupplierController {
         return ResponseEntity.ok(supplierService.updateSupplier(id, supplierDto));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSupplier(@PathVariable(name = "id") Long id) {
-        supplierService.deleteSupplier(id);
+    @GetMapping("/archived")
+    public ResponseEntity<List<SupplierDto>> getArchivedSuppliers() {
+        return ResponseEntity.ok(supplierService.getArchivedSuppliers());
+    }
+
+    @PutMapping("/{id}/archive")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<Void> archiveSupplier(@PathVariable(name = "id") Long id) {
+        supplierService.archiveSupplier(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/restore")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<Void> restoreSupplier(@PathVariable(name = "id") Long id) {
+        supplierService.restoreSupplier(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // @DeleteMapping("/{id}")
+    // public ResponseEntity<Void> deleteSupplier(@PathVariable(name = "id") Long id) {
+    //     supplierService.deleteSupplier(id);
+    //     return ResponseEntity.noContent().build();
+    // }
 
     @GetMapping("/{id}")
     public ResponseEntity<SupplierDto> getSupplierById(@PathVariable(name = "id") Long id) {

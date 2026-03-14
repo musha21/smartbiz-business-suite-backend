@@ -210,8 +210,61 @@ public class InvoiceServiceImpl implements InvoiceService {
         Long businessId = requireBusinessId();
         Invoice invoice = invoiceRepository
                 .findByInvoiceNumberAndBusinessId(invoiceNumber, businessId)
-                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceNumber));
         return mapToResponse(invoice);
+    }
+
+    @Override
+    public List<InvoiceListDto> getAllInvoices(Boolean archived) {
+        Long businessId = requireBusinessId();
+        List<Invoice> invoices;
+        if (Boolean.TRUE.equals(archived)) {
+            invoices = invoiceRepository.findByBusinessIdAndArchivedTrue(businessId);
+        } else {
+            invoices = invoiceRepository.findByBusinessIdAndArchivedFalse(businessId);
+        }
+        return invoices.stream().map(this::mapToListDto).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void archiveInvoice(Long id) {
+        Long businessId = requireBusinessId();
+        Invoice invoice = requireOwnedInvoice(id, businessId);
+        invoice.setArchived(true);
+        invoice.setArchivedAt(LocalDateTime.now());
+        invoiceRepository.save(invoice);
+    }
+
+    @Override
+    @Transactional
+    public void restoreInvoice(Long id) {
+        Long businessId = requireBusinessId();
+        Invoice invoice = requireOwnedInvoice(id, businessId);
+        invoice.setArchived(false);
+        invoice.setArchivedAt(null);
+        invoiceRepository.save(invoice);
+    }
+
+    @Override
+    @Transactional
+    public InvoiceResponseDto updateInvoice(Long id, InvoiceCreateRequestDto request) {
+        Long businessId = requireBusinessId();
+        Invoice invoice = requireOwnedInvoice(id, businessId);
+
+        if (Boolean.TRUE.equals(invoice.getArchived())) {
+            throw new RuntimeException("Cannot edit an archived invoice. Restore it first.");
+        }
+
+        // Simplistic update: replace customer and items
+        if (request.getCustomerId() != null) {
+            Customer customer = requireOwnedCustomer(request.getCustomerId(), businessId);
+            invoice.setCustomer(customer);
+        }
+
+        // TODO: Full item/stock update logic if required.
+
+        return mapToResponse(invoiceRepository.save(invoice));
     }
 
     // ─── Update ──────────────────────────────────────────────────────────────
@@ -229,7 +282,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         try {
             newStatus = InvoiceStatus.valueOf(invoiceStatus.getStatus().toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException("Invalid status. Allowed values: PAID, UNPAID");
+            throw new ResourceNotFoundException("Invalid status. Allowed values: DRAFT, UNPAID, PAID, CANCELLED");
         }
 
         invoice.setStatus(newStatus);
@@ -246,14 +299,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
         dto.setTotalAmount(invoice.getTotalAmount());
 
-        // ✅ Add full customer details
         Customer c = invoice.getCustomer();
-        dto.setCustomer(new CustomerDto(
-                c.getId(),
-                c.getName(),
-                c.getEmail(),
-                c.getPhone(),
-                c.getAddress()));
+        dto.setCustomer(CustomerDto.builder()
+                .id(c.getId())
+                .name(c.getName())
+                .email(c.getEmail())
+                .phone(c.getPhone())
+                .address(c.getAddress())
+                .archived(c.getArchived())
+                .build());
 
         List<InvoiceItemResponseDto> itemDtos = invoice.getItems().stream().map(it -> {
             InvoiceItemResponseDto i = new InvoiceItemResponseDto();
@@ -270,6 +324,24 @@ public class InvoiceServiceImpl implements InvoiceService {
         }).collect(Collectors.toList());
 
         dto.setItems(itemDtos);
+        dto.setArchived(invoice.getArchived());
+        dto.setArchivedAt(invoice.getArchivedAt());
+        return dto;
+    }
+
+    private InvoiceListDto mapToListDto(Invoice invoice) {
+        InvoiceListDto dto = new InvoiceListDto();
+        dto.setId(invoice.getId());
+        dto.setInvoiceNumber(invoice.getInvoiceNumber());
+        dto.setInvoiceDate(invoice.getInvoiceDate());
+        dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
+        dto.setTotalAmount(invoice.getTotalAmount());
+        if (invoice.getCustomer() != null) {
+            dto.setCustomerId(invoice.getCustomer().getId());
+            dto.setCustomerName(invoice.getCustomer().getName());
+        }
+        dto.setArchived(invoice.getArchived());
+        dto.setArchivedAt(invoice.getArchivedAt());
         return dto;
     }
 }

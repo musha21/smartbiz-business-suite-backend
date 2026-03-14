@@ -1,5 +1,6 @@
 package com.example.smartBiz.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,9 +26,14 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
+
+    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -44,13 +50,14 @@ public class SecurityConfig {
                 // ✅ Allow preflight + auth endpoints
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
-                        .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register").permitAll() // ✅ login/register
-                                                                                                    // only
+                        .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register", "/v1/api/auth/refresh", "/v1/api/auth/logout").permitAll() // ✅ login/register/refresh/logout only
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
                                                                                                               // Swagger
                         .anyRequest().authenticated())
                 // ✅ JWT filter
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // ✅ Rate Limit Filter (After JWT so context is populated for user auth)
+                .addFilterAfter(rateLimitFilter, JwtFilter.class);
 
         return http.build();
     }
@@ -71,7 +78,11 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
 
         // ✅ Use patterns (more reliable than setAllowedOrigins)
-        config.setAllowedOriginPatterns(List.of("http://localhost:3000"));
+        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
+            config.setAllowedOriginPatterns(allowedOrigins);
+        } else {
+            config.setAllowedOriginPatterns(List.of("*")); // Fallback if property is empty though shouldn't happen
+        }
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

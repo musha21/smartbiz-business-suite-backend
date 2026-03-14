@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +14,7 @@ public class UnpaidInvoiceDto {
     private Long id;
     private String invoiceNumber;
     private LocalDateTime invoiceDate;
-    private BigDecimal totalAmount;
+    private Double totalAmount;
     private String customerName; // flat string, NOT a nested customer object
 
     // Constructor used by JPQL query (includes customerId for backward compat)
@@ -24,7 +23,7 @@ public class UnpaidInvoiceDto {
         this.id = id;
         this.invoiceNumber = invoiceNumber;
         this.invoiceDate = invoiceDate;
-        this.totalAmount = BigDecimal.valueOf(totalAmount);
+        this.totalAmount = totalAmount;
         this.customerName = customerName;
         // customerId intentionally not stored — frontend only needs customerName
     }

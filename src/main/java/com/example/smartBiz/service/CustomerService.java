@@ -15,4 +15,10 @@ public interface CustomerService {
 
     List<CustomerDto> getAllCustomers();
 
+    List<CustomerDto> getArchivedCustomers();
+
+    void archiveCustomer(Long id);
+
+    void restoreCustomer(Long id);
+
 }

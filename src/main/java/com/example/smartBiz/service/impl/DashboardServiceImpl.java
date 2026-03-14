@@ -9,8 +9,6 @@ import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.DashboardService;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -45,7 +43,7 @@ public class DashboardServiceImpl implements DashboardService {
         Long businessId = requireBusinessId();
 
         // ── Counts (per business) ──
-        long unpaidCount = invoiceRepo.countByBusinessIdAndStatus(businessId, InvoiceStatus.UNPAID);
+        long unpaidCount = invoiceRepo.countByBusinessIdAndStatusAndArchivedFalse(businessId, InvoiceStatus.UNPAID);
         long lowStockCount = productRepo.countLowStockProductsByBusinessId(businessId);
 
         // ── Today range ──
@@ -53,38 +51,38 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime todayStart = today.atStartOfDay();
         LocalDateTime todayEnd = today.atTime(23, 59, 59);
 
-        Double todayRevRaw = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
+        Double todayRevenue = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
                 businessId, InvoiceStatus.PAID, todayStart, todayEnd);
-        Double todayExpRaw = expenseRepo.sumExpensesByBusinessBetween(businessId, todayStart, todayEnd);
-
-        BigDecimal todayRevenue = toBigDecimal(todayRevRaw);
-        BigDecimal todayExpenses = toBigDecimal(todayExpRaw);
-        BigDecimal todayProfit = todayRevenue.subtract(todayExpenses);
+        Double todayExpenses = expenseRepo.sumExpensesByBusinessBetween(businessId, todayStart, todayEnd);
+        
+        todayRevenue = todayRevenue == null ? 0.0 : todayRevenue;
+        todayExpenses = todayExpenses == null ? 0.0 : todayExpenses;
+        double todayProfit = todayRevenue - todayExpenses;
 
         // ── Yesterday range (for growth %) ──
         LocalDate yesterday = today.minusDays(1);
         LocalDateTime ydayStart = yesterday.atStartOfDay();
         LocalDateTime ydayEnd = yesterday.atTime(23, 59, 59);
 
-        Double ydayRevRaw = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
+        Double ydayRevenue = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
                 businessId, InvoiceStatus.PAID, ydayStart, ydayEnd);
-        Double ydayExpRaw = expenseRepo.sumExpensesByBusinessBetween(businessId, ydayStart, ydayEnd);
-
-        BigDecimal ydayRevenue = toBigDecimal(ydayRevRaw);
-        BigDecimal ydayExpenses = toBigDecimal(ydayExpRaw);
+        Double ydayExpenses = expenseRepo.sumExpensesByBusinessBetween(businessId, ydayStart, ydayEnd);
+        
+        ydayRevenue = ydayRevenue == null ? 0.0 : ydayRevenue;
+        ydayExpenses = ydayExpenses == null ? 0.0 : ydayExpenses;
 
         // ── Month range ──
         YearMonth ym = YearMonth.now();
         LocalDateTime monthStart = ym.atDay(1).atStartOfDay();
         LocalDateTime monthEnd = ym.atEndOfMonth().atTime(23, 59, 59);
 
-        Double monthRevRaw = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
+        Double monthRevenue = invoiceRepo.sumTotalAmountByBusinessAndStatusAndDateRange(
                 businessId, InvoiceStatus.PAID, monthStart, monthEnd);
-        Double monthExpRaw = expenseRepo.sumExpensesByBusinessBetween(businessId, monthStart, monthEnd);
-
-        BigDecimal monthRevenue = toBigDecimal(monthRevRaw);
-        BigDecimal monthExpenses = toBigDecimal(monthExpRaw);
-        BigDecimal monthProfit = monthRevenue.subtract(monthExpenses);
+        Double monthExpenses = expenseRepo.sumExpensesByBusinessBetween(businessId, monthStart, monthEnd);
+        
+        monthRevenue = monthRevenue == null ? 0.0 : monthRevenue;
+        monthExpenses = monthExpenses == null ? 0.0 : monthExpenses;
+        double monthProfit = monthRevenue - monthExpenses;
 
         // ── Profit margin % (division-by-zero safe) ──
         Double profitMarginPercent = safePercentage(todayProfit, todayRevenue);
@@ -112,36 +110,25 @@ public class DashboardServiceImpl implements DashboardService {
                 .build();
     }
 
-    // ── Helper: null-safe Double → BigDecimal ──
-    private BigDecimal toBigDecimal(Double val) {
-        return val == null ? BigDecimal.ZERO : BigDecimal.valueOf(val);
-    }
-
     // ── Helper: (numerator / denominator) * 100, zero-safe ──
-    private Double safePercentage(BigDecimal numerator, BigDecimal denominator) {
-        if (denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0) {
+    private Double safePercentage(double numerator, double denominator) {
+        if (denominator == 0) {
             return 0.0;
         }
-        return numerator
-                .multiply(BigDecimal.valueOf(100))
-                .divide(denominator, 2, RoundingMode.HALF_UP)
-                .doubleValue();
+        return (numerator / denominator) * 100.0;
     }
 
     // ── Helper: ((current - previous) / previous) * 100, zero-safe ──
-    private Double safeGrowth(BigDecimal current, BigDecimal previous) {
-        if (previous == null || previous.compareTo(BigDecimal.ZERO) == 0) {
+    private Double safeGrowth(double current, double previous) {
+        if (previous == 0) {
             // If there was nothing yesterday, but there is something today, show 100%; else
             // 0%
-            if (current != null && current.compareTo(BigDecimal.ZERO) > 0) {
+            if (current > 0) {
                 return 100.0;
             }
             return 0.0;
         }
-        return current.subtract(previous)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(previous, 2, RoundingMode.HALF_UP)
-                .doubleValue();
+        return ((current - previous) / previous) * 100.0;
     }
 
     // ── Helper: classify margin into a status string ──

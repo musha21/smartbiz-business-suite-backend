@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -14,14 +14,14 @@ import java.math.BigDecimal;
 public class DashboardSummaryDto {
 
     // ── Today ──
-    private BigDecimal todayRevenue; // Sum of paid invoices created TODAY
-    private BigDecimal todayExpenses; // Sum of expenses created TODAY
-    private BigDecimal todayProfit; // todayRevenue - todayExpenses
+    private Double todayRevenue; // Sum of paid invoices created TODAY
+    private Double todayExpenses; // Sum of expenses created TODAY
+    private Double todayProfit; // todayRevenue - todayExpenses
 
     // ── Month ──
-    private BigDecimal monthRevenue; // Sum of paid invoices this calendar month
-    private BigDecimal monthExpenses; // Sum of expenses this calendar month
-    private BigDecimal monthProfit; // monthRevenue - monthExpenses
+    private Double monthRevenue; // Sum of paid invoices this calendar month
+    private Double monthExpenses; // Sum of expenses this calendar month
+    private Double monthProfit; // monthRevenue - monthExpenses
 
     // ── Counts ──
     private Integer unpaidInvoicesCount; // Count of invoices with status = UNPAID

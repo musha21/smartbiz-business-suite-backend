@@ -37,3 +37,4 @@ public class AnalyticsResponseDto {
         private double revenue;
     }
 }
+

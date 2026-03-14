@@ -56,8 +56,8 @@ public class CustomerServiceImpl implements CustomerService {
         Subscription sub = subscriptionService.getBusinessSubscription(businessId);
         if (sub != null && sub.getPlan() != null) {
             Long limit = planLimitService.getLimitValueOrDefault(sub.getPlan().getId(), "MAX_CUSTOMERS", -1L);
-            if (limit != -1) {
-                long currentCount = customerRepository.countByBusinessId(businessId);
+                if (limit != -1) {
+                    long currentCount = customerRepository.countByBusinessIdAndArchivedFalse(businessId);
                 if (currentCount >= limit) {
                     throw new RuntimeException("Customer limit reached (" + limit + "). Upgrade your plan.");
                 }
@@ -87,7 +87,37 @@ public class CustomerServiceImpl implements CustomerService {
     public void deleteCustomer(Long id) {
         Long businessId = requireBusinessId();
         Customer customer = requireOwnedCustomer(id, businessId);
-        customerRepository.delete(customer);
+        // customerRepository.delete(customer); 
+        // Logic moved to archiveCustomer as per requirement
+        archiveCustomer(id);
+    }
+
+    @Override
+    public List<CustomerDto> getArchivedCustomers() {
+        Long businessId = requireBusinessId();
+        return customerRepository.findByBusinessIdAndArchivedTrue(businessId)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    @Override
+    public void archiveCustomer(Long id) {
+        Long businessId = requireBusinessId();
+        Customer customer = requireOwnedCustomer(id, businessId);
+        customer.setArchived(true);
+        customer.setArchivedAt(java.time.LocalDateTime.now());
+        customerRepository.save(customer);
+    }
+
+    @Override
+    public void restoreCustomer(Long id) {
+        Long businessId = requireBusinessId();
+        // Since we explicitly want to find archived ones, requireOwnedCustomer works as it uses findById
+        Customer customer = requireOwnedCustomer(id, businessId);
+        customer.setArchived(false);
+        customer.setArchivedAt(null);
+        customerRepository.save(customer);
     }
 
     @Override
@@ -102,7 +132,7 @@ public class CustomerServiceImpl implements CustomerService {
         Long businessId = requireBusinessId();
 
         // ✅ IMPORTANT: never use findAll() in multi-business
-        return customerRepository.findByBusinessId(businessId)
+        return customerRepository.findByBusinessIdAndArchivedFalse(businessId)
                 .stream()
                 .map(this::mapToDto)
                 .toList();
@@ -127,6 +157,7 @@ public class CustomerServiceImpl implements CustomerService {
         dto.setEmail(customer.getEmail());
         dto.setPhone(customer.getPhone());
         dto.setAddress(customer.getAddress());
+        dto.setArchived(customer.getArchived());
         return dto;
     }
 }

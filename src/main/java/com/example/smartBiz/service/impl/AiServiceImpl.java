@@ -79,13 +79,13 @@ public class AiServiceImpl implements AiService {
         private void logAiUsage(Long businessId, String feature) {
                 CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
                 Long userId = (principal != null) ? principal.getUserId() : 0L;
-                
+
                 aiUsageLogRepo.save(AiUsageLog.builder()
-                        .businessId(businessId)
-                        .userId(userId)
-                        .feature(feature)
-                        .creditsUsed(1L)
-                        .build());
+                                .businessId(businessId)
+                                .userId(userId)
+                                .feature(feature)
+                                .creditsUsed(1L)
+                                .build());
         }
 
         // ─────────────────────────────────────────────
@@ -249,50 +249,50 @@ public class AiServiceImpl implements AiService {
 
                 // ── SYSTEM PROMPT ──────────────────────────────────────────
                 String systemPrompt = """
-        You are SmartBiz AI, the built-in business intelligence engine of SmartBiz ERP.
+                                You are SmartBiz AI, the built-in business intelligence engine of SmartBiz ERP.
 
-        Your job is to generate a clean, structured business performance report
-        that feels like it came from a real ERP system — not a chatbot.
+                                Your job is to generate a clean, structured business performance report
+                                that feels like it came from a real ERP system — not a chatbot.
 
-        STRICT OUTPUT RULES:
-        - Plain text only. No JSON. No markdown. No symbols like * or **.
-        - Use a dash (-) for bullet points only under Key Insights and Recommendations.
-        - Do NOT start with "Here is your report" or any intro sentence.
-        - Do NOT end with "Feel free to ask" or any closing line.
-        - Write in clear, simple English. Avoid heavy financial jargon.
-        - Every section must appear exactly once, in order.
-        - Total report must be between 150 and 220 words.
+                                STRICT OUTPUT RULES:
+                                - Plain text only. No JSON. No markdown. No symbols like * or **.
+                                - Use a dash (-) for bullet points only under Key Insights and Recommendations.
+                                - Do NOT start with "Here is your report" or any intro sentence.
+                                - Do NOT end with "Feel free to ask" or any closing line.
+                                - Write in clear, simple English. Avoid heavy financial jargon.
+                                - Every section must appear exactly once, in order.
+                                - Total report must be between 150 and 220 words.
 
-        Use EXACTLY these 6 section headings on their own line, in this order:
+                                Use EXACTLY these 6 section headings on their own line, in this order:
 
-        PERFORMANCE OVERVIEW
-        Write 2 sentences giving a straight, honest summary of the business performance
-        for this period. Mention revenue and profit direction (up/down/stable).
+                                PERFORMANCE OVERVIEW
+                                Write 2 sentences giving a straight, honest summary of the business performance
+                                for this period. Mention revenue and profit direction (up/down/stable).
 
-        KEY INSIGHTS
-        - One insight about total invoices and sales volume
-        - One insight about the best selling product and its contribution
-        - One insight about expenses vs profit margin
-        - One insight about stock levels or product availability
+                                KEY INSIGHTS
+                                - One insight about total invoices and sales volume
+                                - One insight about the best selling product and its contribution
+                                - One insight about expenses vs profit margin
+                                - One insight about stock levels or product availability
 
-        FINANCIAL HEALTH
-        Write 2 sentences assessing the overall financial position.
-        Mention if the business is in a healthy, caution, or critical state.
-        Use one of these labels clearly: [ HEALTHY ] [ CAUTION ] [ CRITICAL ]
+                                FINANCIAL HEALTH
+                                Write 2 sentences assessing the overall financial position.
+                                Mention if the business is in a healthy, caution, or critical state.
+                                Use one of these labels clearly: [ HEALTHY ] [ CAUTION ] [ CRITICAL ]
 
-        RISK FLAGS
-        Write 2 sentences highlighting the top risks the owner must watch.
-        Be direct and specific — no vague warnings.
+                                RISK FLAGS
+                                Write 2 sentences highlighting the top risks the owner must watch.
+                                Be direct and specific — no vague warnings.
 
-        RECOMMENDATIONS
-        - One quick action the owner can do this week
-        - One medium term improvement for next month
-        - One strategic suggestion for long term growth
+                                RECOMMENDATIONS
+                                - One quick action the owner can do this week
+                                - One medium term improvement for next month
+                                - One strategic suggestion for long term growth
 
-        OUTLOOK
-        Write 1 sentence predicting the short term business direction
-        based on the current data trends. Be realistic.
-        """;
+                                OUTLOOK
+                                Write 1 sentence predicting the short term business direction
+                                based on the current data trends. Be realistic.
+                                """;
 
                 // ── USER PROMPT ────────────────────────────────────────────
                 String userPrompt = String.format(
@@ -349,33 +349,38 @@ public class AiServiceImpl implements AiService {
 
                 // ✅ All null-safe — no crash if field missing
                 String businessName = (profile != null && profile.getBusinessName() != null)
-                        ? profile.getBusinessName() : "Our Business";
-                String industry     = (profile != null && profile.getIndustry() != null)
-                        ? profile.getIndustry() : "retail";
-                String country      = (profile != null && profile.getCountry() != null)
-                        ? " based in " + profile.getCountry() : "";
-                String tagline      = (profile != null && profile.getBrandTagline() != null)
-                        ? "Tagline: \"" + profile.getBrandTagline() + "\"" : "";
-                String brandColor   = (profile != null && profile.getBrandColor() != null)
-                        ? "Brand Color: " + profile.getBrandColor() : "";
+                                ? profile.getBusinessName()
+                                : "Our Business";
+                String industry = (profile != null && profile.getIndustry() != null)
+                                ? profile.getIndustry()
+                                : "retail";
+                String country = (profile != null && profile.getCountry() != null)
+                                ? " based in " + profile.getCountry()
+                                : "";
+                String tagline = (profile != null && profile.getBrandTagline() != null)
+                                ? "Tagline: \"" + profile.getBrandTagline() + "\""
+                                : "";
+                String brandColor = (profile != null && profile.getBrandColor() != null)
+                                ? "Brand Color: " + profile.getBrandColor()
+                                : "";
 
                 // ✅ No .formatted() — using simple string concat, zero %s risk
                 String systemPrompt = "You are a professional social media copywriter for "
-                        + businessName + ", a " + industry + " business" + country + ".\n\n"
-                        + "BRAND IDENTITY:\n"
-                        + (tagline.isEmpty()    ? "" : tagline    + "\n")
-                        + (brandColor.isEmpty() ? "" : brandColor + "\n")
-                        + "\nSTRICT OUTPUT RULES:\n"
-                        + "- Write ONE post only. No options, no variations.\n"
-                        + "- Do NOT add labels like Caption: or Post:.\n"
-                        + "- Do NOT use markdown or asterisks.\n"
-                        + "- Use emojis naturally.\n"
-                        + "- Maximum 150 words.\n"
-                        + "- End with 3 to 5 relevant hashtags on the last line.\n"
-                        + "- Write like a real person, not a robot.";
+                                + businessName + ", a " + industry + " business" + country + ".\n\n"
+                                + "BRAND IDENTITY:\n"
+                                + (tagline.isEmpty() ? "" : tagline + "\n")
+                                + (brandColor.isEmpty() ? "" : brandColor + "\n")
+                                + "\nSTRICT OUTPUT RULES:\n"
+                                + "- Write ONE post only. No options, no variations.\n"
+                                + "- Do NOT add labels like Caption: or Post:.\n"
+                                + "- Do NOT use markdown or asterisks.\n"
+                                + "- Use emojis naturally.\n"
+                                + "- Maximum 150 words.\n"
+                                + "- End with 3 to 5 relevant hashtags on the last line.\n"
+                                + "- Write like a real person, not a robot.";
 
                 String userPrompt = "Write a social media post for Facebook and Instagram about:\n"
-                        + sanitize(topic);
+                                + sanitize(topic);
 
                 auditLogService.info("Generating AI marketing post for business: " + businessId);
                 usageCounterService.incrementAiCount(businessId);
@@ -440,24 +445,24 @@ public class AiServiceImpl implements AiService {
                                 : "{{company.phone}}";
 
                 String userPrompt = """
-        Email Category: %s
-        Tone: %s
-        Company Name: %s (Industry: %s, Location: %s)
-        Contact Info: %s, %s
+                                Email Category: %s
+                                Tone: %s
+                                Company Name: %s (Industry: %s, Location: %s)
+                                Contact Info: %s, %s
 
-        Context:
-        %s
+                                Context:
+                                %s
 
-        Write a professional email draft based on this information.
-        """.formatted(
-                        category,
-                        tone,
-                        companyName,
-                        industry,        // ✅ was companyEmail — wrong!
-                        country,         // ✅ was companyPhone — wrong!
-                        companyEmail,    // ✅ Contact Info first
-                        companyPhone,    // ✅ Contact Info second
-                        sanitize(context) // ✅ 8th — Context
+                                Write a professional email draft based on this information.
+                                """.formatted(
+                                category,
+                                tone,
+                                companyName,
+                                industry, // ✅ was companyEmail — wrong!
+                                country, // ✅ was companyPhone — wrong!
+                                companyEmail, // ✅ Contact Info first
+                                companyPhone, // ✅ Contact Info second
+                                sanitize(context) // ✅ 8th — Context
                 );
 
                 auditLogService.info("Generating AI email draft for business: " + businessId +

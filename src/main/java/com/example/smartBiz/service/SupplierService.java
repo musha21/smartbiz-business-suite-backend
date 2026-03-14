@@ -14,4 +14,10 @@ public interface SupplierService {
     SupplierDto getSupplierById(Long id);
 
     List<SupplierDto> getAllSuppliers();
+
+    List<SupplierDto> getArchivedSuppliers();
+
+    void archiveSupplier(Long id);
+
+    void restoreSupplier(Long id);
 }
