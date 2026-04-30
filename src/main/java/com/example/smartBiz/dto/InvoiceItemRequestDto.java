@@ -11,4 +11,6 @@ public class InvoiceItemRequestDto {
     private Long productId;
     private Long batchId;
     private Integer quantity;
+    private Double discountPercentage;
+    private Double discountAmount;
 }

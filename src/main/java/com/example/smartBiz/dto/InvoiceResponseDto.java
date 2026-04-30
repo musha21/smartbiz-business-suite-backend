@@ -11,6 +11,7 @@ public class InvoiceResponseDto {
     private LocalDateTime invoiceDate;
     private String status;
     private Double totalAmount;
+    private Double totalDiscount;
 
     private CustomerDto customer; // ✅ full customer details
 

@@ -11,6 +11,10 @@ public class BusinessAdminDto {
     private Long id;
     private String name;
     private Boolean active;
+    private String email;
+    private String contactNumber;
+
+    
 
 
 }

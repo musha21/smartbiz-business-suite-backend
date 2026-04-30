@@ -56,12 +56,14 @@ public class Customer {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;                     // ✅ new — track updates
+    private boolean isDeleted;
 
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();            // ✅ set on create too
         this.archived = false;                           // ✅ safety default
+        this.isDeleted = false; // ✅ IMPORTANT
     }
 
     @PreUpdate

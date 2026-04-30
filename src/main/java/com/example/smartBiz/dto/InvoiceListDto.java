@@ -15,6 +15,7 @@ public class InvoiceListDto {
     private LocalDateTime invoiceDate;
     private String status;
     private Double totalAmount;
+    private Double totalDiscount;
     private Long customerId;
     private String customerName;
     private Boolean archived;

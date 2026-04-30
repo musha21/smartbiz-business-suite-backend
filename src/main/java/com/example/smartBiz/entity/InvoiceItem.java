@@ -33,5 +33,9 @@ public class InvoiceItem {
 
     private Double unitPrice;
 
+    private Double discountPercentage = 0.0;
+
+    private Double discountAmount = 0.0;
+
     private Double lineTotal;
 }

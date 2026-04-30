@@ -17,16 +17,20 @@ public class AdminServiceImpl implements AdminService {
     private final InvoiceRepo invoiceRepo;
     private final SubscriptionRepo subscriptionRepo;
     private final AdminLogRepository adminLogRepository;
+    private final BusinessProfileRepo businessProfileRepo;
+
 
     public AdminServiceImpl(BusinessRepo businessRepo, UserRepo userRepo,
             InvoiceRepo invoiceRepo, SubscriptionRepo subscriptionRepo,
-            AdminLogRepository adminLogRepository) {
+            AdminLogRepository adminLogRepository, BusinessProfileRepo businessProfileRepo) {
         this.businessRepo = businessRepo;
         this.userRepo = userRepo;
         this.invoiceRepo = invoiceRepo;
         this.subscriptionRepo = subscriptionRepo;
         this.adminLogRepository = adminLogRepository;
+        this.businessProfileRepo = businessProfileRepo;
     }
+
 
     @Override
     public AdminStatsOverviewDTO getStatsOverview() {
@@ -69,10 +73,27 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<BusinessAdminDto> getAllBusinesses() {
-        return businessRepo.findAll().stream()
-                .map(b -> new BusinessAdminDto(b.getId(), b.getName(), b.getActive()))
+        List<Business> businesses = businessRepo.findAll();
+        List<Long> businessIds = businesses.stream().map(Business::getId).toList();
+        
+        java.util.Map<Long, BusinessProfile> profiles = businessProfileRepo.findAllByBusinessIdIn(businessIds)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(BusinessProfile::getBusinessId, p -> p));
+
+        return businesses.stream()
+                .map(b -> {
+                    BusinessProfile p = profiles.get(b.getId());
+                    return new BusinessAdminDto(
+                        b.getId(), 
+                        b.getName(), 
+                        b.getActive(),
+                        p != null ? p.getEmail() : null,
+                        p != null ? p.getPhone() : null
+                    );
+                })
                 .toList();
     }
+
 
     @Override
     public List<UserAdminDto> getAllUsers() {
@@ -93,9 +114,17 @@ public class AdminServiceImpl implements AdminService {
 
         business.setActive(false);
         Business saved = businessRepo.save(business);
+        BusinessProfile p = businessProfileRepo.findByBusinessId(saved.getId()).orElse(null);
 
-        return new BusinessAdminDto(saved.getId(), saved.getName(), saved.getActive());
+        return new BusinessAdminDto(
+            saved.getId(), 
+            saved.getName(), 
+            saved.getActive(),
+            p != null ? p.getEmail() : null,
+            p != null ? p.getPhone() : null
+        );
     }
+
 
     @Override
     public BusinessAdminDto enableBusiness(Long businessId) {
@@ -104,7 +133,15 @@ public class AdminServiceImpl implements AdminService {
 
         business.setActive(true);
         Business saved = businessRepo.save(business);
+        BusinessProfile p = businessProfileRepo.findByBusinessId(saved.getId()).orElse(null);
 
-        return new BusinessAdminDto(saved.getId(), saved.getName(), saved.getActive());
+        return new BusinessAdminDto(
+            saved.getId(), 
+            saved.getName(), 
+            saved.getActive(),
+            p != null ? p.getEmail() : null,
+            p != null ? p.getPhone() : null
+        );
     }
+
 }

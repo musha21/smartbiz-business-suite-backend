@@ -148,6 +148,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setInvoiceNumber(generateInvoiceNumber());
 
         double grandTotal = 0.0;
+        double totalInvoiceDiscount = 0.0;
 
         for (InvoiceItemRequestDto itemReq : request.getItems()) {
 
@@ -175,7 +176,17 @@ public class InvoiceServiceImpl implements InvoiceService {
             syncProductStockFromBatches(product, businessId);
 
             double unitPrice = product.getPrice() == null ? 0.0 : product.getPrice();
-            double lineTotal = unitPrice * qty;
+            double discountPct = itemReq.getDiscountPercentage() != null ? itemReq.getDiscountPercentage() : 0.0;
+            double discountAmt = itemReq.getDiscountAmount() != null ? itemReq.getDiscountAmount() : 0.0;
+
+            double subtotal = unitPrice * qty;
+            double pctSavings = (subtotal * discountPct) / 100.0;
+            double lineTotal = subtotal - pctSavings - discountAmt;
+
+            if (lineTotal < 0) lineTotal = 0.0;
+
+            double itemSavings = subtotal - lineTotal;
+            totalInvoiceDiscount += itemSavings;
             grandTotal += lineTotal;
 
             InvoiceItem invoiceItem = new InvoiceItem();
@@ -184,12 +195,15 @@ public class InvoiceServiceImpl implements InvoiceService {
             invoiceItem.setBatch(batch);
             invoiceItem.setQuantity(qty);
             invoiceItem.setUnitPrice(unitPrice);
+            invoiceItem.setDiscountPercentage(discountPct);
+            invoiceItem.setDiscountAmount(discountAmt);
             invoiceItem.setLineTotal(lineTotal);
 
             invoice.getItems().add(invoiceItem);
         }
 
         invoice.setTotalAmount(grandTotal);
+        invoice.setTotalDiscount(totalInvoiceDiscount);
         Invoice saved = invoiceRepository.save(invoice);
 
         usageCounterService.incrementInvoiceCount(businessId);
@@ -298,6 +312,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
         dto.setTotalAmount(invoice.getTotalAmount());
+        dto.setTotalDiscount(invoice.getTotalDiscount());
 
         Customer c = invoice.getCustomer();
         dto.setCustomer(CustomerDto.builder()
@@ -319,6 +334,8 @@ public class InvoiceServiceImpl implements InvoiceService {
             }
             i.setQuantity(it.getQuantity());
             i.setUnitPrice(it.getUnitPrice());
+            i.setDiscountPercentage(it.getDiscountPercentage());
+            i.setDiscountAmount(it.getDiscountAmount());
             i.setLineTotal(it.getLineTotal());
             return i;
         }).collect(Collectors.toList());
@@ -336,6 +353,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         dto.setInvoiceDate(invoice.getInvoiceDate());
         dto.setStatus(invoice.getStatus() != null ? invoice.getStatus().name() : null);
         dto.setTotalAmount(invoice.getTotalAmount());
+        dto.setTotalDiscount(invoice.getTotalDiscount());
         if (invoice.getCustomer() != null) {
             dto.setCustomerId(invoice.getCustomer().getId());
             dto.setCustomerName(invoice.getCustomer().getName());

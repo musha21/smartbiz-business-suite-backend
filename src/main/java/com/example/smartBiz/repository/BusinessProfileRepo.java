@@ -9,4 +9,7 @@ import java.util.Optional;
 @Repository
 public interface BusinessProfileRepo extends JpaRepository<BusinessProfile, Long> {
     Optional<BusinessProfile> findByBusinessId(Long businessId);
+    
+    java.util.List<BusinessProfile> findAllByBusinessIdIn(java.util.Collection<Long> businessIds);
+
 }

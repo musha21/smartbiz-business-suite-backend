@@ -16,5 +16,7 @@ public class InvoiceItemResponseDto {
 
     private Integer quantity;
     private Double unitPrice;
+    private Double discountPercentage;
+    private Double discountAmount;
     private Double lineTotal;
 }
