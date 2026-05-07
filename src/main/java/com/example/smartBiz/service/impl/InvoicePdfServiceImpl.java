@@ -40,7 +40,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null)
-            throw new RuntimeException("Unauthorized");
+            throw new ResourceNotFoundException("Unauthorized");
 
         Long businessId = principal.getBusinessId();
 
@@ -56,14 +56,14 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
                     .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
             if (Boolean.FALSE.equals(b.getActive()))
-                throw new RuntimeException("Business account is disabled");
+                throw new ResourceNotFoundException("Business account is disabled");
         }
 
         Invoice invoice = invoiceRepository.findInvoiceForPdf(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
 
         if (!isAdmin && !businessId.equals(invoice.getBusinessId()))
-            throw new RuntimeException("Access denied: invoice not in your business");
+            throw new ResourceNotFoundException("Access denied: invoice not in your business");
 
         // ── PDF generation ────────────────────────────────────────────────────
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -209,7 +209,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             return baos.toByteArray();
 
         } catch (Exception e) {
-            throw new RuntimeException("PDF generation failed: " + e.getMessage(), e);
+            throw new ResourceNotFoundException("PDF generation failed: " + e.getMessage(), e);
         }
     }
 

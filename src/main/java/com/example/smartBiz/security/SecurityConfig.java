@@ -27,13 +27,19 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final RateLimitFilter rateLimitFilter;
+    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
+    private final CustomAccessDeniedHandler accessDeniedHandler;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
-    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter,
+                          CustomAuthenticationEntryPoint authenticationEntryPoint,
+                          CustomAccessDeniedHandler accessDeniedHandler) {
         this.jwtFilter = jwtFilter;
         this.rateLimitFilter = rateLimitFilter;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Bean
@@ -51,9 +57,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
                         .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register", "/v1/api/auth/refresh", "/v1/api/auth/logout").permitAll() // ✅ login/register/refresh/logout only
+                        .requestMatchers("/v1/api/payments/notify").permitAll() // ✅ PayHere server-to-server callback
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
                                                                                                               // Swagger
                         .anyRequest().authenticated())
+                // ✅ JSON error responses for auth/access denied
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler)
+                )
                 // ✅ JWT filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 // ✅ Rate Limit Filter (After JWT so context is populated for user auth)

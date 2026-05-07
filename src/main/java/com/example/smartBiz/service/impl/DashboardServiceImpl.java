@@ -1,6 +1,8 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.DashboardSummaryDto;
+import com.example.smartBiz.entity.*;
+import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.repository.ExpenseRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
@@ -32,7 +34,7 @@ public class DashboardServiceImpl implements DashboardService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
         return principal.getBusinessId();
     }

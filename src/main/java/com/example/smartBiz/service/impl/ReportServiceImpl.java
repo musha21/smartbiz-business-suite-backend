@@ -4,6 +4,7 @@ import com.example.smartBiz.dto.MonthlyRevenueDto;
 import com.example.smartBiz.dto.TopProductDto;
 import com.example.smartBiz.dto.UnpaidInvoiceDto;
 import com.example.smartBiz.enums.InvoiceStatus;
+import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.InvoiceItemRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
 import com.example.smartBiz.security.CustomUserPrincipal;
@@ -30,7 +31,7 @@ public class ReportServiceImpl implements ReportService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
         return principal.getBusinessId();
     }

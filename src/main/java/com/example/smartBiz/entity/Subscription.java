@@ -39,7 +39,7 @@ public class Subscription {
     private BillingCycle billingCycle;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30)
     private SubscriptionStatus status = SubscriptionStatus.ACTIVE;
 
     /** Subscription start timestamp */
@@ -49,11 +49,15 @@ public class Subscription {
     /** null = no expiry (e.g. free plan forever) */
     private LocalDateTime endAt;
 
-    // ─── Stripe fields (nullable for now, ready for later) ──
+    // ─── PayHere fields ─────────────────────────────────
 
-    private String stripeCustomerId;
-    private String stripeSubscriptionId;
-    private String stripePriceId;
+    private String payhereOrderId;
+    private String payherePaymentId;
+
+    // ─── Cancellation ────────────────────────────────
+
+    /** When the user/admin requested cancellation (null = not canceled) */
+    private LocalDateTime canceledAt;
 
     // ─── Audit ───────────────────────────────────────
 

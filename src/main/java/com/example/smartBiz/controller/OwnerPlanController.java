@@ -1,6 +1,9 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.MyPlanDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.smartBiz.dto.UsageCountersDto;
 import com.example.smartBiz.entity.Subscription;
 import com.example.smartBiz.repository.CustomerRepo;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1/api/owner")
 @CrossOrigin
+@Tag(name = "Owner Plan", description = "Owner's current plan & usage counters")
 public class OwnerPlanController {
 
     private final SubscriptionService subscriptionService;
@@ -40,10 +44,8 @@ public class OwnerPlanController {
         this.productRepo = productRepo;
     }
 
-    /**
-     * Owner fetches their currently assigned plan.
-     * GET /v1/api/owner/my-plan
-     */
+    @Operation(summary = "Get my plan", description = "Returns the subscription plan currently assigned to the owner's business.")
+    @ApiResponse(responseCode = "200", description = "Plan returned")
     @GetMapping("/my-plan")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<MyPlanDto> getMyPlan() {
@@ -55,10 +57,8 @@ public class OwnerPlanController {
         return ResponseEntity.ok(subscriptionService.getOwnerPlan(businessId));
     }
 
-    /**
-     * Owner fetches their current month usage and plan limits.
-     * GET /v1/api/owner/usage
-     */
+    @Operation(summary = "Get usage counters", description = "Returns the owner's current month usage (invoices, customers, products, AI credits) vs. plan limits. A limit of -1 means unlimited.")
+    @ApiResponse(responseCode = "200", description = "Usage counters returned")
     @GetMapping("/usage")
     @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<UsageCountersDto> getUsage() {

@@ -1,6 +1,7 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.AssignPlanRequestDto;
+import com.example.smartBiz.dto.CancelSubscriptionResponseDto;
 import com.example.smartBiz.dto.MySubscriptionDto;
 import com.example.smartBiz.entity.Business;
 import com.example.smartBiz.entity.Plan;
@@ -61,7 +62,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         // ✅ Block assignment of INACTIVE plans
         if (!com.example.smartBiz.enums.PlanStatus.ACTIVE.equals(plan.getStatus())) {
-            throw new RuntimeException("Plan is " + plan.getStatus() + " and cannot be newly assigned.");
+            throw new ResourceNotFoundException("Plan is " + plan.getStatus() + " and cannot be newly assigned.");
         }
 
         // Cancel any existing ACTIVE subscription for this business
@@ -80,10 +81,12 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime endAt = null;
 
-        // For free plans (price = 0), endAt stays null (no expiry)
+        // For free plans (price = 0), endAt = 7-day trial
         boolean isFree = plan.getMonthlyPrice() == 0.0 && plan.getYearlyPrice() == 0.0;
 
-        if (!isFree) {
+        if (isFree) {
+            endAt = now.plusDays(7); // 7-day free trial
+        } else {
             String unit = dto.getDurationUnit().toUpperCase();
             int count = dto.getDurationCount();
 
@@ -92,7 +95,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             } else if ("YEARS".equals(unit)) {
                 endAt = now.plusYears(count);
             } else {
-                throw new RuntimeException("Invalid durationUnit: " + dto.getDurationUnit() + ". Use MONTHS or YEARS.");
+                throw new ResourceNotFoundException("Invalid durationUnit: " + dto.getDurationUnit() + ". Use MONTHS or YEARS.");
             }
         }
 
@@ -152,6 +155,9 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         dto.setLimits(limits);
         dto.setYearMonth(LocalDate.now().format(YM_FORMATTER));
         dto.setInvoicesUsed(usageCounterService.getThisMonthInvoiceCount(businessId));
+        dto.setCanceledAt(sub.getCanceledAt());
+        dto.setCanceling(sub.getCanceledAt() != null
+                && sub.getStatus() == SubscriptionStatus.ACTIVE);
 
         return dto;
     }
@@ -169,10 +175,16 @@ public class SubscriptionServiceImpl implements SubscriptionService {
 
         Subscription sub = subOpt.get();
 
-        // If endAt is set and has passed → mark EXPIRED
+        // If endAt is set and has passed → transition status
         if (sub.getEndAt() != null && sub.getEndAt().isBefore(LocalDateTime.now())) {
-            sub.setStatus(SubscriptionStatus.EXPIRED);
+            // If user had requested cancel → CANCELED, otherwise → EXPIRED
+            if (sub.getCanceledAt() != null) {
+                sub.setStatus(SubscriptionStatus.CANCELED);
+            } else {
+                sub.setStatus(SubscriptionStatus.EXPIRED);
+            }
             subscriptionRepo.save(sub);
+            syncBusinessOnCancel(sub.getBusiness());
         }
     }
 
@@ -189,16 +201,18 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         }
 
         Subscription sub = subOpt.get();
-        String status = "ACTIVE";
-        if (sub.getStatus() == SubscriptionStatus.EXPIRED) {
-            status = "EXPIRED";
-        } else if (sub.getStatus() == SubscriptionStatus.CANCELED) {
-            // If canceled but not expired yet, it might still be active?
-            // Requirements say: If assigned but expired -> status="EXPIRED", Else ->
-            // "ACTIVE"
-            // For now, let's stick to EXPIRED vs ACTIVE check.
-            if (sub.getEndAt() != null && sub.getEndAt().isBefore(LocalDateTime.now())) {
-                status = "EXPIRED";
+        String status;
+        switch (sub.getStatus()) {
+            case EXPIRED -> status = "EXPIRED";
+            case CANCELED -> status = "CANCELED";
+            case PENDING_PAYMENT -> status = "PENDING_PAYMENT";
+            default -> {
+                // ACTIVE — but check if cancel was requested (grace period)
+                if (sub.getCanceledAt() != null) {
+                    status = "CANCELING";
+                } else {
+                    status = "ACTIVE";
+                }
             }
         }
 
@@ -213,5 +227,99 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     public Subscription getBusinessSubscription(Long businessId) {
         return subscriptionRepo.findByBusinessIdAndStatus(businessId, SubscriptionStatus.ACTIVE)
                 .orElse(null);
+    }
+
+    // ─── Cancel subscription ──────────────────────────
+
+    @Override
+    @Transactional
+    public CancelSubscriptionResponseDto cancelSubscription(Long businessId) {
+        Subscription sub = subscriptionRepo
+                .findByBusinessIdAndStatus(businessId, SubscriptionStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No active subscription found for business: " + businessId));
+
+        // Free plans cannot be canceled
+        Plan plan = sub.getPlan();
+        if (plan.getMonthlyPrice() == 0.0 && plan.getYearlyPrice() == 0.0) {
+            throw new IllegalStateException("Free plan subscriptions cannot be canceled.");
+        }
+
+        // Already cancel-requested?
+        if (sub.getCanceledAt() != null) {
+            return CancelSubscriptionResponseDto.builder()
+                    .status("CANCELING")
+                    .message("Cancellation already requested. Access continues until " + sub.getEndAt() + ".")
+                    .canceledAt(sub.getCanceledAt())
+                    .accessUntil(sub.getEndAt())
+                    .build();
+        }
+
+        sub.setCanceledAt(LocalDateTime.now());
+
+        if (sub.getEndAt() == null) {
+            // No end date → cancel immediately
+            sub.setStatus(SubscriptionStatus.CANCELED);
+            subscriptionRepo.save(sub);
+            syncBusinessOnCancel(sub.getBusiness());
+
+            return CancelSubscriptionResponseDto.builder()
+                    .status("CANCELED")
+                    .message("Subscription canceled immediately.")
+                    .canceledAt(sub.getCanceledAt())
+                    .accessUntil(null)
+                    .build();
+        }
+
+        // Has end date → keep active until endAt (grace period)
+        subscriptionRepo.save(sub);
+
+        return CancelSubscriptionResponseDto.builder()
+                .status("CANCELING")
+                .message("Subscription will end on " + sub.getEndAt()
+                        + ". You retain full access until then.")
+                .canceledAt(sub.getCanceledAt())
+                .accessUntil(sub.getEndAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public CancelSubscriptionResponseDto adminCancelSubscription(Long businessId, boolean immediate) {
+        Subscription sub = subscriptionRepo
+                .findByBusinessIdAndStatus(businessId, SubscriptionStatus.ACTIVE)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No active subscription for business: " + businessId));
+
+        sub.setCanceledAt(LocalDateTime.now());
+
+        if (immediate) {
+            sub.setStatus(SubscriptionStatus.CANCELED);
+            subscriptionRepo.save(sub);
+            syncBusinessOnCancel(sub.getBusiness());
+        } else {
+            // Grace period — stays ACTIVE until endAt
+            subscriptionRepo.save(sub);
+        }
+
+        String msg = immediate
+                ? "Subscription canceled immediately by admin."
+                : "Subscription marked for cancellation at period end.";
+
+        return CancelSubscriptionResponseDto.builder()
+                .status(immediate ? "CANCELED" : "CANCELING")
+                .message(msg)
+                .canceledAt(sub.getCanceledAt())
+                .accessUntil(immediate ? null : sub.getEndAt())
+                .build();
+    }
+
+    /** Clear Business plan fields when subscription is fully canceled */
+    private void syncBusinessOnCancel(Business business) {
+        business.setPlanId(null);
+        business.setPlan(null);
+        business.setSubscriptionStart(null);
+        business.setSubscriptionEnd(null);
+        businessRepo.save(business);
     }
 }

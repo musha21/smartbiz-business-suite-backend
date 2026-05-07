@@ -31,7 +31,7 @@ public class PlanServiceImpl implements PlanService {
     public PlanResponseDto createPlan(PlanCreateDto dto) {
         // Ensure unique code
         if (planRepo.findByCode(dto.getCode().toUpperCase()).isPresent()) {
-            throw new RuntimeException("Plan code already exists: " + dto.getCode());
+            throw new ResourceNotFoundException("Plan code already exists: " + dto.getCode());
         }
 
         Plan plan = new Plan();
@@ -116,7 +116,7 @@ public class PlanServiceImpl implements PlanService {
             // status
             plan.setActive(newStatus == PlanStatus.ACTIVE);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid status: " + status + ". Use ACTIVE or INACTIVE");
+            throw new ResourceNotFoundException("Invalid status: " + status + ". Use ACTIVE or INACTIVE");
         }
 
         Plan saved = planRepo.save(plan);

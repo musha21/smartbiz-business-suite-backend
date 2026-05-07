@@ -24,7 +24,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
         return principal.getBusinessId();
     }
@@ -35,7 +35,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id " + id));
 
         if (e.getBusinessId() == null || !e.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: expense not in your business");
+            throw new ResourceNotFoundException("Access denied: expense not in your business");
         }
         return e;
     }

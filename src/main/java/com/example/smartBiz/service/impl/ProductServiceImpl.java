@@ -50,7 +50,7 @@ public class ProductServiceImpl implements ProductService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null)
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         return principal.getBusinessId();
     }
 
@@ -141,7 +141,7 @@ public class ProductServiceImpl implements ProductService {
             if (limit != -1) {
                 long currentCount = productRepo.countByBusinessId(businessId);
                 if (currentCount >= limit) {
-                    throw new RuntimeException("Product limit reached (" + limit + "). Upgrade your plan.");
+                    throw new ResourceNotFoundException("Product limit reached (" + limit + "). Upgrade your plan.");
                 }
             }
         }

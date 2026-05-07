@@ -23,7 +23,7 @@ public class SupplierServiceImpl implements SupplierService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
         return principal.getBusinessId();
     }
@@ -33,7 +33,7 @@ public class SupplierServiceImpl implements SupplierService {
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found with id " + id));
 
         if (s.getBusinessId() == null || !s.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: supplier not in your business");
+            throw new ResourceNotFoundException("Access denied: supplier not in your business");
         }
         return s;
     }

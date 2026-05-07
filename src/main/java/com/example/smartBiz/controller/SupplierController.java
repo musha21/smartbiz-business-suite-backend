@@ -1,6 +1,10 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.SupplierDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.smartBiz.service.SupplierService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,6 +15,7 @@ import java.util.List;
 
 @RequestMapping(("/v1/api/supplier"))
 @RestController
+@Tag(name = "Suppliers", description = "CRUD + archive/restore for suppliers")
 public class SupplierController {
     private final SupplierService supplierService;
 
@@ -19,34 +24,44 @@ public class SupplierController {
         this.supplierService = supplierService;
     }
 
+    @Operation(summary = "Create a supplier")
+    @ApiResponse(responseCode = "200", description = "Supplier created")
     @PostMapping
     public ResponseEntity<SupplierDto> createSupplier(
             @RequestBody SupplierDto supplierDto) {
         return ResponseEntity.ok(supplierService.createSupplier(supplierDto));
     }
 
+    @Operation(summary = "Update a supplier")
+    @ApiResponse(responseCode = "200", description = "Supplier updated")
     @PutMapping("/{id}")
     public ResponseEntity<SupplierDto> updateSupplier(
-            @PathVariable(name = "id") Long id,
+            @Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id,
             @RequestBody SupplierDto supplierDto) {
         return ResponseEntity.ok(supplierService.updateSupplier(id, supplierDto));
     }
 
+    @Operation(summary = "List archived suppliers")
+    @ApiResponse(responseCode = "200", description = "Archived suppliers returned")
     @GetMapping("/archived")
     public ResponseEntity<List<SupplierDto>> getArchivedSuppliers() {
         return ResponseEntity.ok(supplierService.getArchivedSuppliers());
     }
 
+    @Operation(summary = "Archive a supplier", description = "Soft-deletes a supplier. Requires ADMIN or OWNER role.")
+    @ApiResponse(responseCode = "204", description = "Supplier archived")
     @PutMapping("/{id}/archive")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
-    public ResponseEntity<Void> archiveSupplier(@PathVariable(name = "id") Long id) {
+    public ResponseEntity<Void> archiveSupplier(@Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id) {
         supplierService.archiveSupplier(id);
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Restore an archived supplier")
+    @ApiResponse(responseCode = "204", description = "Supplier restored")
     @PutMapping("/{id}/restore")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
-    public ResponseEntity<Void> restoreSupplier(@PathVariable(name = "id") Long id) {
+    public ResponseEntity<Void> restoreSupplier(@Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id) {
         supplierService.restoreSupplier(id);
         return ResponseEntity.noContent().build();
     }
@@ -57,12 +72,16 @@ public class SupplierController {
     //     return ResponseEntity.noContent().build();
     // }
 
+    @Operation(summary = "Get supplier by ID")
+    @ApiResponse(responseCode = "200", description = "Supplier returned")
     @GetMapping("/{id}")
-    public ResponseEntity<SupplierDto> getSupplierById(@PathVariable(name = "id") Long id) {
+    public ResponseEntity<SupplierDto> getSupplierById(@Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id) {
         SupplierDto supplier = supplierService.getSupplierById(id);
         return ResponseEntity.ok(supplier);
     }
 
+    @Operation(summary = "List all active suppliers")
+    @ApiResponse(responseCode = "200", description = "Suppliers returned")
     @GetMapping
     public ResponseEntity<List<SupplierDto>> getAllSuppliers() {
         return ResponseEntity.ok(supplierService.getAllSuppliers());

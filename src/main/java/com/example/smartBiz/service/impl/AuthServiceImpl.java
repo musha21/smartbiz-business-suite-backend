@@ -6,31 +6,51 @@ import com.example.smartBiz.dto.LoginRequestDto;
 import com.example.smartBiz.dto.RegisterRequestDto;
 import com.example.smartBiz.entity.AppUser;
 import com.example.smartBiz.entity.Business;
+import com.example.smartBiz.entity.Plan;
+import com.example.smartBiz.entity.Subscription;
+import com.example.smartBiz.enums.BillingCycle;
 import com.example.smartBiz.enums.Role;
+import com.example.smartBiz.enums.SubscriptionStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.BusinessRepo;
+import com.example.smartBiz.repository.PlanRepo;
+import com.example.smartBiz.repository.SubscriptionRepo;
 import com.example.smartBiz.repository.UserRepo;
 import com.example.smartBiz.security.JwtUtil;
 import com.example.smartBiz.service.AuthService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
+
     private final UserRepo userRepo;
     private final BusinessRepo businessRepo;
+    private final PlanRepo planRepo;
+    private final SubscriptionRepo subscriptionRepo;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
 
-    public AuthServiceImpl(UserRepo userRepo, BusinessRepo businessRepo, PasswordEncoder encoder, JwtUtil jwtUtil) {
+    public AuthServiceImpl(UserRepo userRepo, BusinessRepo businessRepo,
+                           PlanRepo planRepo, SubscriptionRepo subscriptionRepo,
+                           PasswordEncoder encoder, JwtUtil jwtUtil) {
         this.userRepo = userRepo;
         this.businessRepo = businessRepo;
+        this.planRepo = planRepo;
+        this.subscriptionRepo = subscriptionRepo;
         this.encoder = encoder;
         this.jwtUtil = jwtUtil;
     }
 
     @Override
+    @Transactional
     public AuthTokenWrapperDto register(RegisterRequestDto req) {
 
         if (req.getName() == null || req.getName().isBlank()) {
@@ -69,7 +89,10 @@ public class AuthServiceImpl implements AuthService {
 
         AppUser savedUser = userRepo.save(user);
 
-        // 3) Generate token
+        // 3) Auto-assign FREE plan
+        assignFreePlan(savedBusiness);
+
+        // 4) Generate token
         String token = jwtUtil.generateToken(
                 savedUser.getId(),
                 savedBusiness.getId(),
@@ -86,6 +109,45 @@ public class AuthServiceImpl implements AuthService {
                 savedBusiness.getName());
 
         return new AuthTokenWrapperDto(responseDto, refreshToken);
+    }
+
+    /**
+     * Auto-assigns the FREE plan (7-day trial) to a newly registered business.
+     * After 7 days the subscription expires and the user must upgrade.
+     * If no FREE plan exists in the DB, registration still succeeds but the
+     * business will have no subscription until an admin assigns one.
+     */
+    private static final int FREE_TRIAL_DAYS = 7;
+
+    private void assignFreePlan(Business business) {
+        planRepo.findByCode("FREE").ifPresentOrElse(
+                freePlan -> {
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime trialEnd = now.plusDays(FREE_TRIAL_DAYS);
+
+                    // Create ACTIVE subscription — 7-day free trial
+                    Subscription sub = new Subscription();
+                    sub.setBusiness(business);
+                    sub.setPlan(freePlan);
+                    sub.setBillingCycle(BillingCycle.MONTHLY);
+                    sub.setStatus(SubscriptionStatus.ACTIVE);
+                    sub.setStartAt(now);
+                    sub.setEndAt(trialEnd); // expires after 7 days
+                    subscriptionRepo.save(sub);
+
+                    // Sync business entity
+                    business.setPlanId(freePlan.getId());
+                    business.setPlan(freePlan.getName());
+                    business.setSubscriptionStart(now);
+                    business.setSubscriptionEnd(trialEnd);
+                    businessRepo.save(business);
+
+                    log.info("Auto-assigned FREE trial ({} days) to business {} (ID: {}), expires: {}",
+                            FREE_TRIAL_DAYS, business.getName(), business.getId(), trialEnd);
+                },
+                () -> log.warn("FREE plan not found in DB — business {} registered without a plan. "
+                        + "Create a plan with code='FREE' via admin panel.", business.getId())
+        );
     }
 
     @Override

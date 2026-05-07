@@ -1,6 +1,10 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.AiReportRequestDto;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.smartBiz.dto.AiReportResponseDto;
 import com.example.smartBiz.dto.EmailDraftRequestDto;
 import com.example.smartBiz.entity.Subscription;
@@ -19,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/api/ai")
 @CrossOrigin
+@Tag(name = "AI", description = "AI-powered reports, marketing posts & email drafts")
 public class AiController {
 
     private final AiService aiService;
@@ -49,6 +54,12 @@ public class AiController {
         return currentUsage < limit;
     }
 
+    @Operation(summary = "Generate AI report", description = "Generates an AI-powered business report for the given date range and prompt. Consumes 1 AI credit. Rate limited: 20/hour.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Report generated"),
+            @ApiResponse(responseCode = "403", description = "AI credit limit reached"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+    })
     @PostMapping("/report")
     @PreAuthorize("hasAnyRole('OWNER','ADMIN')")
     public ResponseEntity<AiReportResponseDto> getReport(
@@ -72,7 +83,11 @@ public class AiController {
                 dto.getTo(),
                 dto.getPrompt()));
     }
-    // ✅ FIXED
+    @Operation(summary = "Generate marketing post", description = "AI-generates a social media marketing post based on a topic. Consumes 1 AI credit.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Post generated"),
+            @ApiResponse(responseCode = "403", description = "AI credit limit reached")
+    })
     @PostMapping("/marketing/post")
     public ResponseEntity<?> generatePost(@RequestBody Map<String, Object> request) {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
@@ -90,6 +105,12 @@ public class AiController {
         return ResponseEntity.ok(Map.of("post", post));
     }
 
+    @Operation(summary = "Generate email draft", description = "AI-generates a professional email draft based on category, tone, and optional context. Consumes 1 AI credit.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Email draft generated"),
+            @ApiResponse(responseCode = "400", description = "Missing required fields (category, tone)"),
+            @ApiResponse(responseCode = "403", description = "AI credit limit reached")
+    })
     @PostMapping("/email/draft")
     public ResponseEntity<?> generateEmailDraft(@RequestBody EmailDraftRequestDto req) {
 

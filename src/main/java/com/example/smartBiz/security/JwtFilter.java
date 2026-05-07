@@ -1,8 +1,10 @@
 package com.example.smartBiz.security;
 
+import com.example.smartBiz.dto.ErrorResponse;
 import com.example.smartBiz.entity.Business;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.BusinessRepo;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -39,7 +42,10 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // ✅ 1. Skip public endpoints
-        if (path.startsWith("/v1/api/auth/")) {
+        if (path.startsWith("/v1/api/auth/")
+                || path.startsWith("/v1/api/payments/notify")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -48,8 +54,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // ✅ 2. Reject if token missing (for protected routes)
         if (auth == null || !auth.startsWith("Bearer ")) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Authorization header missing");
+            writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "Authorization header missing", request);
             return;
         }
 
@@ -88,8 +93,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (!isAdmin) {
                 if (businessId == null) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("Business context missing");
+                    writeError(response, HttpServletResponse.SC_FORBIDDEN, "Business context missing", request);
                     return;
                 }
 
@@ -97,8 +101,7 @@ public class JwtFilter extends OncePerRequestFilter {
                         .orElseThrow(() -> new ResourceNotFoundException("Business not found"));
 
                 if (Boolean.FALSE.equals(business.getActive())) {
-                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("Business disabled");
+                    writeError(response, HttpServletResponse.SC_FORBIDDEN, "Business disabled", request);
                     return;
                 }
             }
@@ -118,13 +121,25 @@ public class JwtFilter extends OncePerRequestFilter {
             // ❌ Invalid / expired token
             SecurityContextHolder.clearContext();
 
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Invalid or expired token");
+            writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token", request);
             return;
         }
 
         // ✅ Continue filter chain
         filterChain.doFilter(request, response);
+    }
+
+    private void writeError(HttpServletResponse response, int status, String message,
+                            HttpServletRequest request) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        response.setStatus(status);
+        ErrorResponse error = ErrorResponse.builder()
+                .status(status)
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+        new ObjectMapper().writeValue(response.getOutputStream(), error);
     }
 
     // ✅ Helper method

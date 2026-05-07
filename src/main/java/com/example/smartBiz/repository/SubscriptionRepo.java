@@ -42,4 +42,6 @@ public interface SubscriptionRepo extends JpaRepository<Subscription, Long> {
     List<com.example.smartBiz.dto.ExpiringSubscriptionDTO> findExpiringSubscriptions(
             @org.springframework.data.repository.query.Param("now") java.time.LocalDateTime now,
             @org.springframework.data.repository.query.Param("soon") java.time.LocalDateTime soon);
+
+    Optional<Subscription> findByPayhereOrderIdAndStatus(String payhereOrderId, SubscriptionStatus status);
 }

@@ -47,7 +47,7 @@ public class InvoiceServiceImpl implements InvoiceService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null)
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         return principal.getBusinessId();
     }
 
@@ -120,7 +120,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         // 2. Ensure active subscription exists
         MySubscriptionDto mySub = subscriptionService.getMySubscription(businessId);
         if ("NONE".equals(mySub.getStatus()))
-            throw new RuntimeException("No active subscription. Contact admin to assign a plan.");
+            throw new ResourceNotFoundException("No active subscription. Contact admin to assign a plan.");
 
         // 3. Enforce monthly invoice limit
         long limit = mySub.getLimits() != null
@@ -267,7 +267,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         Invoice invoice = requireOwnedInvoice(id, businessId);
 
         if (Boolean.TRUE.equals(invoice.getArchived())) {
-            throw new RuntimeException("Cannot edit an archived invoice. Restore it first.");
+            throw new ResourceNotFoundException("Cannot edit an archived invoice. Restore it first.");
         }
 
         // Simplistic update: replace customer and items

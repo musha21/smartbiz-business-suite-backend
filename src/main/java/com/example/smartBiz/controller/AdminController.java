@@ -1,6 +1,11 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.smartBiz.entity.AdminLog;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.service.AdminService;
@@ -13,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/api/admin")
 @CrossOrigin(origins = "http://localhost:3000")
+@Tag(name = "Admin - Dashboard", description = "Admin stats overview, logs & expiring subscriptions")
 public class AdminController {
 
     private final AdminService adminService;
@@ -29,46 +35,55 @@ public class AdminController {
      * prefix: @PreAuthorize("hasAuthority('ADMIN')")
      */
 
-    // 1) Dashboard Overview Stats
+    @Operation(summary = "Dashboard overview stats", description = "Returns total businesses, users, active subscriptions, and revenue.")
+    @ApiResponse(responseCode = "200", description = "Stats returned")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/stats/overview")
     public AdminStatsOverviewDTO getStatsOverview() {
         return adminService.getStatsOverview();
     }
 
-    // 2) Latest Admin Logs
+    @Operation(summary = "Get latest admin logs", description = "Returns the most recent admin action logs.")
+    @ApiResponse(responseCode = "200", description = "Logs returned")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/logs")
-    public List<AdminLog> getAdminLogs(@RequestParam(name = "limit", defaultValue = "20") int limit) {
+    public List<AdminLog> getAdminLogs(@Parameter(description = "Max number of logs to return") @RequestParam(name = "limit", defaultValue = "20") int limit) {
         return adminService.getAdminLogs(limit);
     }
 
-    // 3) Expiring Subscriptions
+    @Operation(summary = "Get expiring subscriptions", description = "Returns subscriptions expiring within the given number of days.")
+    @ApiResponse(responseCode = "200", description = "Expiring subscriptions returned")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/subscriptions/expiring")
     public List<ExpiringSubscriptionDTO> getExpiringSubscriptions(
-            @RequestParam(name = "days", defaultValue = "7") int days) {
+            @Parameter(description = "Number of days to look ahead") @RequestParam(name = "days", defaultValue = "7") int days) {
         return adminService.getExpiringSubscriptions(days);
     }
 
-    // ✅ View all businesses
+    @Operation(summary = "List all businesses", description = "Returns all registered businesses with active/disabled status.")
+    @ApiResponse(responseCode = "200", description = "Businesses returned")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/businesses")
     public List<BusinessAdminDto> getAllBusinesses() {
         return adminService.getAllBusinesses();
     }
 
-    // ✅ View all users
+    @Operation(summary = "List all users", description = "Returns all users across all businesses.")
+    @ApiResponse(responseCode = "200", description = "Users returned")
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/users")
     public List<UserAdminDto> getAllUsers() {
         return adminService.getAllUsers();
     }
 
-    // ✅ Disable a business (soft delete)
+    @Operation(summary = "Disable a business", description = "Soft-disables a business. Its users will be blocked from accessing protected endpoints.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Business disabled"),
+            @ApiResponse(responseCode = "404", description = "Business not found")
+    })
     @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/businesses/{businessId}/disable")
-    public BusinessAdminDto disable(@PathVariable(name = "businessId") Long businessId) {
+    public BusinessAdminDto disable(@Parameter(description = "Business ID") @PathVariable(name = "businessId") Long businessId) {
         adminService.logAction("INFO", "Disabled business ID: " + businessId);
         BusinessAdminDto businessAdminDto = adminService.disableBusiness(businessId);
         if (businessAdminDto == null) {
@@ -77,9 +92,14 @@ public class AdminController {
         return businessAdminDto;
     }
 
+    @Operation(summary = "Enable a business", description = "Re-enables a previously disabled business.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Business enabled"),
+            @ApiResponse(responseCode = "404", description = "Business not found")
+    })
     @PatchMapping("/businesses/{businessId}/enable")
     @PreAuthorize("hasRole('ADMIN')")
-    public BusinessAdminDto enable(@PathVariable(name = "businessId") Long businessId) {
+    public BusinessAdminDto enable(@Parameter(description = "Business ID") @PathVariable(name = "businessId") Long businessId) {
         adminService.logAction("INFO", "Enabled business ID: " + businessId);
         BusinessAdminDto businessAdminDto = adminService.enableBusiness(businessId);
         if (businessAdminDto == null) {

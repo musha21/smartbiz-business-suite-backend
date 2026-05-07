@@ -28,7 +28,7 @@ public class ProductBatchServiceImpl implements ProductBatchService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null)
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         return principal.getBusinessId();
     }
 

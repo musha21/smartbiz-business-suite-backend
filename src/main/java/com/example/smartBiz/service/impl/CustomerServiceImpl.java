@@ -32,7 +32,7 @@ public class CustomerServiceImpl implements CustomerService {
     private Long requireBusinessId() {
         CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
         if (principal == null || principal.getBusinessId() == null) {
-            throw new RuntimeException("Business context missing (JWT required)");
+            throw new ResourceNotFoundException("Business context missing (JWT required)");
         }
         return principal.getBusinessId();
     }
@@ -43,7 +43,7 @@ public class CustomerServiceImpl implements CustomerService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer not found with id " + id));
 
         if (c.getBusinessId() == null || !c.getBusinessId().equals(businessId)) {
-            throw new RuntimeException("Access denied: customer not in your business");
+            throw new ResourceNotFoundException("Access denied: customer not in your business");
         }
         return c;
     }
@@ -59,7 +59,7 @@ public class CustomerServiceImpl implements CustomerService {
                 if (limit != -1) {
                     long currentCount = customerRepository.countByBusinessIdAndArchivedFalse(businessId);
                 if (currentCount >= limit) {
-                    throw new RuntimeException("Customer limit reached (" + limit + "). Upgrade your plan.");
+                    throw new ResourceNotFoundException("Customer limit reached (" + limit + "). Upgrade your plan.");
                 }
             }
         }

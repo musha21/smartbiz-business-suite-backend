@@ -1,0 +1,16 @@
+# ──────────────────────────────────────────────
+# PayHere Sandbox Configuration
+# ──────────────────────────────────────────────
+# Copy these properties into your application.properties
+# Replace values with your PayHere sandbox credentials.
+#
+# Get sandbox credentials at: https://sandbox.payhere.lk/
+# ──────────────────────────────────────────────
+
+payhere.merchant-id=YOUR_SANDBOX_MERCHANT_ID
+payhere.merchant-secret=YOUR_SANDBOX_MERCHANT_SECRET
+payhere.sandbox=true
+payhere.currency=LKR
+payhere.notify-url=http://localhost:8080/v1/api/payments/notify
+payhere.return-url=http://localhost:3000/payment/success
+payhere.cancel-url=http://localhost:3000/payment/cancel
