@@ -12,6 +12,7 @@ import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.ProductService;
 import com.example.smartBiz.service.PlanLimitService;
 import com.example.smartBiz.service.SubscriptionService;
+import com.example.smartBiz.service.SequenceService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class ProductServiceImpl implements ProductService {
     private final BusinessRepo businessRepo;
     private final SubscriptionService subscriptionService;
     private final PlanLimitService planLimitService;
+    private final SequenceService sequenceService;
 
     public ProductServiceImpl(
             ProductRepo productRepo,
@@ -37,7 +39,8 @@ public class ProductServiceImpl implements ProductService {
             CategoryRepo categoryRepo,
             BusinessRepo businessRepo,
             SubscriptionService subscriptionService,
-            PlanLimitService planLimitService) {
+            PlanLimitService planLimitService,
+            SequenceService sequenceService) {
         this.productRepo = productRepo;
         this.supplierRepo = supplierRepo;
         this.batchRepo = batchRepo;
@@ -45,6 +48,7 @@ public class ProductServiceImpl implements ProductService {
         this.businessRepo = businessRepo;
         this.subscriptionService = subscriptionService;
         this.planLimitService = planLimitService;
+        this.sequenceService = sequenceService;
     }
 
     private Long requireBusinessId() {
@@ -82,10 +86,10 @@ public class ProductServiceImpl implements ProductService {
         return (cleaned + "XXX").substring(0, len);
     }
 
-    private String generateSku(String businessName, String categoryName, Long productId) {
+    private String generateSku(String businessName, String categoryName, Long sequenceValue) {
         String bus = prefix(businessName, 3);
         String cat = prefix(categoryName, 2);
-        return bus + cat + productId;
+        return bus + cat + sequenceValue;
     }
 
     private void applyDtoToEntity(Products product, ProductsDto dto, Long businessId) {
@@ -155,11 +159,12 @@ public class ProductServiceImpl implements ProductService {
 
         Products saved = productRepo.save(product);
 
+        Long nextVal = sequenceService.getNextValue(businessId, "PRODUCT_SKU");
         String catName = saved.getCategory() != null ? saved.getCategory().getName() : "NA";
-        String sku = generateSku(business.getName(), catName, saved.getId());
+        String sku = generateSku(business.getName(), catName, nextVal);
 
         if (productRepo.existsByBusinessIdAndSku(businessId, sku)) {
-            sku = sku + "X";
+            sku = sku + "X" + nextVal;
         }
 
         saved.setSku(sku);

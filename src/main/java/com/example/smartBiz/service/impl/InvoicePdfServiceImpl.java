@@ -3,7 +3,9 @@ package com.example.smartBiz.service.impl;
 import com.example.smartBiz.entity.Business;
 import com.example.smartBiz.entity.Invoice;
 import com.example.smartBiz.entity.InvoiceItem;
+import com.example.smartBiz.entity.BusinessProfile;
 import com.example.smartBiz.exception.ResourceNotFoundException;
+import com.example.smartBiz.repository.BusinessProfileRepo;
 import com.example.smartBiz.repository.BusinessRepo;
 import com.example.smartBiz.repository.InvoiceRepo;
 import com.example.smartBiz.security.CustomUserPrincipal;
@@ -19,20 +21,24 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 
 @Service
 public class InvoicePdfServiceImpl implements InvoicePdfService {
 
     private final InvoiceRepo invoiceRepository;
     private final BusinessRepo businessRepo;
+    private final BusinessProfileRepo profileRepo;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
 
     public InvoicePdfServiceImpl(
             InvoiceRepo invoiceRepository,
-            BusinessRepo businessRepo) {
+            BusinessRepo businessRepo,
+            BusinessProfileRepo profileRepo) {
         this.invoiceRepository = invoiceRepository;
         this.businessRepo = businessRepo;
+        this.profileRepo = profileRepo;
     }
 
     @Override
@@ -65,6 +71,19 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         if (!isAdmin && !businessId.equals(invoice.getBusinessId()))
             throw new ResourceNotFoundException("Access denied: invoice not in your business");
 
+        // Fetch Business Profile
+        BusinessProfile profile = profileRepo.findByBusinessId(invoice.getBusinessId())
+                .orElse(null);
+
+        String businessName = (profile != null && profile.getBusinessName() != null) ? profile.getBusinessName() : "SmartBiz";
+        String ownerName = (profile != null && profile.getOwnerName() != null) ? profile.getOwnerName() : "";
+        String taglineStr = (profile != null && profile.getBrandTagline() != null) ? profile.getBrandTagline() : "AI-Powered Business Management Suite";
+        String businessAddress = (profile != null && profile.getAddress() != null) ? profile.getAddress() : "";
+        String businessPhone = (profile != null && profile.getPhone() != null) ? profile.getPhone() : "";
+        java.awt.Color brandColor = (profile != null && profile.getBrandColor() != null) 
+                ? java.awt.Color.decode(profile.getBrandColor().startsWith("#") ? profile.getBrandColor() : "#" + profile.getBrandColor()) 
+                : new java.awt.Color(230, 230, 230);
+
         // ── PDF generation ────────────────────────────────────────────────────
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 
@@ -74,29 +93,58 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
             // Logo
             try {
-                ClassPathResource resource = new ClassPathResource("static/mush.png");
-                try (InputStream in = resource.getInputStream()) {
-                    Image logo = Image.getInstance(in.readAllBytes());
+                if (profile != null && profile.getLogo() != null && !profile.getLogo().isBlank()) {
+                    String logoData = profile.getLogo();
+                    if (logoData.contains(",")) {
+                        logoData = logoData.split(",")[1];
+                    }
+                    byte[] imageBytes = Base64.getDecoder().decode(logoData);
+                    Image logo = Image.getInstance(imageBytes);
                     logo.scaleToFit(90, 90);
                     logo.setAlignment(Image.ALIGN_RIGHT);
                     document.add(logo);
+                } else {
+                    ClassPathResource resource = new ClassPathResource("static/mush.png");
+                    try (InputStream in = resource.getInputStream()) {
+                        Image logo = Image.getInstance(in.readAllBytes());
+                        logo.scaleToFit(90, 90);
+                        logo.setAlignment(Image.ALIGN_RIGHT);
+                        document.add(logo);
+                    }
                 }
             } catch (Exception ignored) {
-                // Logo is optional — silently skip if missing
             }
 
             // ── 1. Company header ─────────────────────────────────────────────
             Font companyFont = new Font(Font.HELVETICA, 16, Font.BOLD);
+            Font ownerFont = new Font(Font.HELVETICA, 11, Font.ITALIC);
             Font small = new Font(Font.HELVETICA, 10);
 
-            Paragraph company = new Paragraph("SmartBiz", companyFont);
+            Paragraph company = new Paragraph(businessName, companyFont);
             company.setAlignment(Element.ALIGN_LEFT);
-
-            Paragraph tagline = new Paragraph("AI-Powered Business Management Suite", small);
-            tagline.setAlignment(Element.ALIGN_LEFT);
-
             document.add(company);
+
+            if (!ownerName.isBlank()) {
+                Paragraph owner = new Paragraph("Owner: " + ownerName, ownerFont);
+                owner.setAlignment(Element.ALIGN_LEFT);
+                document.add(owner);
+            }
+
+            Paragraph tagline = new Paragraph(taglineStr, small);
+            tagline.setAlignment(Element.ALIGN_LEFT);
             document.add(tagline);
+
+            if (!businessAddress.isBlank() || !businessPhone.isBlank()) {
+                StringBuilder contactInfo = new StringBuilder();
+                if (!businessAddress.isBlank()) contactInfo.append(businessAddress);
+                if (!businessAddress.isBlank() && !businessPhone.isBlank()) contactInfo.append(" | ");
+                if (!businessPhone.isBlank()) contactInfo.append("Tel: ").append(businessPhone);
+                
+                Paragraph contact = new Paragraph(contactInfo.toString(), small);
+                contact.setAlignment(Element.ALIGN_LEFT);
+                document.add(contact);
+            }
+
             document.add(new Paragraph(" "));
             addLine(document);
 
@@ -160,40 +208,53 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             document.add(new Paragraph(" "));
 
             // ── 4. Items table ────────────────────────────────────────────────
-            PdfPTable table = new PdfPTable(5);
+            PdfPTable table = new PdfPTable(6);
             table.setWidthPercentage(100);
             table.setSpacingBefore(5);
-            table.setWidths(new float[] { 1.2f, 4.8f, 1.2f, 2f, 2f });
+            table.setWidths(new float[] { 1f, 4f, 1f, 1.5f, 1.5f, 2f });
 
-            addHeaderCell(table, "No");
-            addHeaderCell(table, "Product");
-            addHeaderCell(table, "Qty");
-            addHeaderCell(table, "Unit Price");
-            addHeaderCell(table, "Line Total");
+            addHeaderCell(table, "No", brandColor);
+            addHeaderCell(table, "Product", brandColor);
+            addHeaderCell(table, "Qty", brandColor);
+            addHeaderCell(table, "Unit Price", brandColor);
+            addHeaderCell(table, "Discount", brandColor);
+            addHeaderCell(table, "Line Total", brandColor);
 
             int index = 1;
+            double subtotalVal = 0.0;
             for (InvoiceItem item : invoice.getItems()) {
-                // FIX: null-safe product name — item.getProduct() could be null
                 String productName = (item.getProduct() != null)
                         ? safe(item.getProduct().getName())
                         : "Unknown Product";
+
+                double itemSubtotal = (item.getUnitPrice() != null ? item.getUnitPrice() : 0.0) * (item.getQuantity() != null ? item.getQuantity() : 0);
+                subtotalVal += itemSubtotal;
 
                 table.addCell(bodyCell(String.valueOf(index++), Element.ALIGN_CENTER));
                 table.addCell(bodyCell(productName, Element.ALIGN_LEFT));
                 table.addCell(bodyCell(String.valueOf(item.getQuantity()), Element.ALIGN_CENTER));
                 table.addCell(bodyCell(formatMoney(item.getUnitPrice()), Element.ALIGN_RIGHT));
+                table.addCell(bodyCell(formatMoney(item.getDiscountAmount()), Element.ALIGN_RIGHT));
                 table.addCell(bodyCell(formatMoney(item.getLineTotal()), Element.ALIGN_RIGHT));
             }
 
             document.add(table);
 
-            // ── 5. Grand total ────────────────────────────────────────────────
+            // ── 5. Totals breakdown ───────────────────────────────────────────
             document.add(new Paragraph(" "));
 
             PdfPTable totals = new PdfPTable(2);
-            totals.setWidthPercentage(40);
+            totals.setWidthPercentage(45);
             totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
             totals.setWidths(new float[] { 1.5f, 1f });
+
+            totals.addCell(totalsLabel("Subtotal", value));
+            totals.addCell(totalsValue(formatMoney(subtotalVal), value));
+
+            if (invoice.getTotalDiscount() != null && invoice.getTotalDiscount() > 0) {
+                totals.addCell(totalsLabel("Total Discount", value));
+                totals.addCell(totalsValue("-" + formatMoney(invoice.getTotalDiscount()), value));
+            }
 
             totals.addCell(totalsLabel("Grand Total", label));
             totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount()), label));
@@ -235,12 +296,12 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         document.add(stamp);
     }
 
-    private void addHeaderCell(PdfPTable table, String text) {
+    private void addHeaderCell(PdfPTable table, String text, java.awt.Color bgColor) {
         Font headFont = new Font(Font.HELVETICA, 10, Font.BOLD);
         PdfPCell cell = new PdfPCell(new Phrase(text, headFont));
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
         cell.setPadding(7);
-        cell.setBackgroundColor(new java.awt.Color(230, 230, 230));
+        cell.setBackgroundColor(bgColor);
         table.addCell(cell);
     }
 

@@ -5,10 +5,12 @@ import com.example.smartBiz.enums.InvoiceStatus;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.*;
 import com.example.smartBiz.security.CustomUserPrincipal;
+import com.example.smartBiz.entity.*;
+import com.example.smartBiz.service.BusinessProfileService;
 import com.example.smartBiz.service.InvoiceService;
+import com.example.smartBiz.service.SequenceService;
 import com.example.smartBiz.service.SubscriptionService;
 import com.example.smartBiz.service.UsageCounterService;
-import com.example.smartBiz.entity.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +28,8 @@ public class InvoiceServiceImpl implements InvoiceService {
     private final ProductBatchRepo batchRepo;
     private final SubscriptionService subscriptionService;
     private final UsageCounterService usageCounterService;
+    private final BusinessProfileService businessProfileService;
+    private final SequenceService sequenceService;
 
     public InvoiceServiceImpl(
             InvoiceRepo invoiceRepository,
@@ -33,13 +37,17 @@ public class InvoiceServiceImpl implements InvoiceService {
             ProductRepo productRepo,
             ProductBatchRepo batchRepo,
             SubscriptionService subscriptionService,
-            UsageCounterService usageCounterService) {
+            UsageCounterService usageCounterService,
+            BusinessProfileService businessProfileService,
+            SequenceService sequenceService) {
         this.invoiceRepository = invoiceRepository;
         this.customerRepository = customerRepository;
         this.productRepo = productRepo;
         this.batchRepo = batchRepo;
         this.subscriptionService = subscriptionService;
         this.usageCounterService = usageCounterService;
+        this.businessProfileService = businessProfileService;
+        this.sequenceService = sequenceService;
     }
 
     // ─── Guards ──────────────────────────────────────────────────────────────
@@ -87,8 +95,14 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private String generateInvoiceNumber() {
-        return "INV-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    private String generateInvoiceNumber(Long businessId) {
+        BusinessProfileDto profile = businessProfileService.getProfile(businessId);
+        String prefix = (profile != null && profile.getInvoicePrefix() != null && !profile.getInvoicePrefix().isBlank())
+                ? profile.getInvoicePrefix()
+                : "INV";
+
+        Long nextVal = sequenceService.getNextValue(businessId, "INVOICE");
+        return prefix + "-" + nextVal;
     }
 
     /**
@@ -145,7 +159,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setCustomer(customer);
         invoice.setInvoiceDate(LocalDateTime.now());
         invoice.setStatus(InvoiceStatus.UNPAID);
-        invoice.setInvoiceNumber(generateInvoiceNumber());
+        invoice.setInvoiceNumber(generateInvoiceNumber(businessId));
 
         double grandTotal = 0.0;
         double totalInvoiceDiscount = 0.0;
@@ -270,13 +284,70 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new ResourceNotFoundException("Cannot edit an archived invoice. Restore it first.");
         }
 
-        // Simplistic update: replace customer and items
+        // 1. Update customer if changed
         if (request.getCustomerId() != null) {
             Customer customer = requireOwnedCustomer(request.getCustomerId(), businessId);
             invoice.setCustomer(customer);
         }
 
-        // TODO: Full item/stock update logic if required.
+        // 2. Return old items to stock
+        for (InvoiceItem oldItem : invoice.getItems()) {
+            if (oldItem.getBatch() != null) {
+                ProductBatch batch = oldItem.getBatch();
+                batch.setQtyAvailable((batch.getQtyAvailable() == null ? 0 : batch.getQtyAvailable()) + oldItem.getQuantity());
+                batchRepo.save(batch);
+                syncProductStockFromBatches(oldItem.getProduct(), businessId);
+            }
+        }
+
+        // 3. Clear old items
+        invoice.getItems().clear();
+
+        // 4. Process new items (Reuse logic from create)
+        double grandTotal = 0.0;
+        double totalInvoiceDiscount = 0.0;
+
+        for (InvoiceItemRequestDto itemReq : request.getItems()) {
+            Products product = requireOwnedProduct(itemReq.getProductId(), businessId);
+            ProductBatch batch = requireOwnedBatch(itemReq.getBatchId(), businessId, product.getId());
+
+            int qty = itemReq.getQuantity();
+            int available = batch.getQtyAvailable() == null ? 0 : batch.getQtyAvailable();
+
+            if (available < qty)
+                throw new ResourceNotFoundException("Insufficient stock in batch: " + batch.getBatchNumber());
+
+            // Deduct stock
+            batch.setQtyAvailable(available - qty);
+            batchRepo.save(batch);
+            syncProductStockFromBatches(product, businessId);
+
+            double unitPrice = product.getPrice() == null ? 0.0 : product.getPrice();
+            double discountPct = itemReq.getDiscountPercentage() != null ? itemReq.getDiscountPercentage() : 0.0;
+            double discountAmt = itemReq.getDiscountAmount() != null ? itemReq.getDiscountAmount() : 0.0;
+
+            double subtotal = unitPrice * qty;
+            double pctSavings = (subtotal * discountPct) / 100.0;
+            double lineTotal = Math.max(0, subtotal - pctSavings - discountAmt);
+
+            totalInvoiceDiscount += (subtotal - lineTotal);
+            grandTotal += lineTotal;
+
+            InvoiceItem invoiceItem = new InvoiceItem();
+            invoiceItem.setInvoice(invoice);
+            invoiceItem.setProduct(product);
+            invoiceItem.setBatch(batch);
+            invoiceItem.setQuantity(qty);
+            invoiceItem.setUnitPrice(unitPrice);
+            invoiceItem.setDiscountPercentage(discountPct);
+            invoiceItem.setDiscountAmount(discountAmt);
+            invoiceItem.setLineTotal(lineTotal);
+
+            invoice.getItems().add(invoiceItem);
+        }
+
+        invoice.setTotalAmount(grandTotal);
+        invoice.setTotalDiscount(totalInvoiceDiscount);
 
         return mapToResponse(invoiceRepository.save(invoice));
     }
@@ -323,6 +394,9 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .address(c.getAddress())
                 .archived(c.getArchived())
                 .build());
+
+        // Fetch business profile
+        dto.setBusinessProfile(businessProfileService.getProfile(invoice.getBusinessId()));
 
         List<InvoiceItemResponseDto> itemDtos = invoice.getItems().stream().map(it -> {
             InvoiceItemResponseDto i = new InvoiceItemResponseDto();

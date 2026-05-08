@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
                         .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register", "/v1/api/auth/refresh", "/v1/api/auth/logout").permitAll() // ✅ login/register/refresh/logout only
                         .requestMatchers("/v1/api/payments/notify").permitAll() // ✅ PayHere server-to-server callback
+                        .requestMatchers(HttpMethod.GET, "/v1/api/payments/status/**").permitAll() // ✅ PayHere status polling (post-redirect)
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
                                                                                                               // Swagger
                         .anyRequest().authenticated())

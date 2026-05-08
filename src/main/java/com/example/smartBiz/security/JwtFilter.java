@@ -27,10 +27,12 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final BusinessRepo businessRepo;
+    private final ObjectMapper objectMapper;
 
-    public JwtFilter(JwtUtil jwtUtil, BusinessRepo businessRepo) {
+    public JwtFilter(JwtUtil jwtUtil, BusinessRepo businessRepo, ObjectMapper objectMapper) {
         this.jwtUtil = jwtUtil;
         this.businessRepo = businessRepo;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -44,6 +46,7 @@ public class JwtFilter extends OncePerRequestFilter {
         // ✅ 1. Skip public endpoints
         if (path.startsWith("/v1/api/auth/")
                 || path.startsWith("/v1/api/payments/notify")
+                || path.startsWith("/v1/api/payments/status/")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")) {
             filterChain.doFilter(request, response);
@@ -139,7 +142,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 .timestamp(LocalDateTime.now())
                 .path(request.getRequestURI())
                 .build();
-        new ObjectMapper().writeValue(response.getOutputStream(), error);
+        objectMapper.writeValue(response.getOutputStream(), error);
     }
 
     // ✅ Helper method

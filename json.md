@@ -1,7 +1,7 @@
 # SmartBiz API Endpoints & DTOs — New/Updated Reference
 
-> **Last updated:** May 7, 2026
-> **Scope:** PayHere integration, payment history, subscription cancellation, Swagger annotations, and free-trial groundwork
+> **Last updated:** May 8, 2026
+> **Scope:** PayHere integration, payment history, subscription cancellation, **Invoice PDF dynamic branding, line/total discounts, and full invoice update logic**
 
 ---
 
@@ -397,4 +397,48 @@ All endpoints are documented with:
 - Cannot be canceled (`POST /subscriptions/cancel` returns 400)
 - Cannot be checked out via PayHere (blocked in `PayHereServiceImpl`)
 - Plan limits (invoices, customers, products, AI credits) are controlled by the `plan_limits` table
+
+---
+
+## May 8 Updates — Invoice & PDF Enhancements
+
+### Dynamic Branding in PDF
+The `InvoicePdfService` now automatically fetches the latest **Business Profile** details for the business associated with the invoice.
+
+| Feature | Description |
+|---------|-------------|
+| **Dynamic Header** | Shows `businessName` and `ownerName` (labels updated). |
+| **Contact Info** | Displays business `address` and `phone` in the sender section. |
+| **Brand Color** | Table headers use the `brandColor` from the profile (e.g., `#007bff`). |
+| **Logo Support** | Decodes Base64 logo from profile; falls back to static asset if missing. |
+| **Discounts** | Added "Discount" column to items table and total savings breakdown. |
+
+### Updated Invoice DTOs
+
+#### InvoiceResponseDto (Updated)
+**Package:** `com.example.smartBiz.dto`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `customer` | `CustomerDto` | Full details of the customer |
+| `businessProfile` | `BusinessProfileDto` | **NEW:** Full details of the business (for automatic fetching) |
+| `items` | `List<InvoiceItemResponseDto>` | List of purchased items |
+| `totalDiscount` | `Double` | Sum of all line item savings |
+
+#### InvoiceItemResponseDto (Updated)
+**Package:** `com.example.smartBiz.dto`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `discountPercentage` | `Double` | Percentage discount applied |
+| `discountAmount` | `Double` | Flat discount amount applied |
+| `lineTotal` | `Double` | Final price for the line (after discounts) |
+
+### Improved Invoice Update Logic
+`PUT /v1/api/invoices/{id}` now performs a **Full Stock & Item Sync**:
+1. Reverses stock for all old items in the invoice.
+2. Clears previous items.
+3. Processes new items from request, deducting from product batches.
+4. Recalculates `totalAmount` and `totalDiscount`.
+5. Syncs `Products.stock_qty` across all batches.
 

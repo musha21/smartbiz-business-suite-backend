@@ -14,6 +14,7 @@ public class InvoiceResponseDto {
     private Double totalDiscount;
 
     private CustomerDto customer; // ✅ full customer details
+    private BusinessProfileDto businessProfile; // ✅ business details
 
     private List<InvoiceItemResponseDto> items;
 

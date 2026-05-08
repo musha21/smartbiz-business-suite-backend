@@ -25,11 +25,15 @@ import java.util.List;
 @Data
 @Builder
 @Entity
-@Table(name = "invoices", indexes = {
-        @Index(name = "idx_invoices_business_status_date", columnList = "business_id, status, invoice_date"),
-        @Index(name = "idx_invoice_date", columnList = "invoice_date"),
-        @Index(name = "idx_invoice_business", columnList = "business_id")
-})
+@Table(name = "invoices",
+        indexes = {
+                @Index(name = "idx_invoices_business_status_date", columnList = "business_id, status, invoice_date"),
+                @Index(name = "idx_invoice_date", columnList = "invoice_date"),
+                @Index(name = "idx_invoice_business", columnList = "business_id")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_business_invoice_number", columnNames = {"business_id", "invoice_number"})
+        })
 public class Invoice {
 
     @Id
@@ -39,7 +43,7 @@ public class Invoice {
     @Column(name = "business_id", nullable = false)
     private Long businessId;
 
-    @Column(name = "invoice_number", unique = true, nullable = false)
+    @Column(name = "invoice_number", nullable = false)
     @NotBlank(message = "Invoice number is required")
     private String invoiceNumber;
 

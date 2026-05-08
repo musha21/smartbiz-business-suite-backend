@@ -7,12 +7,16 @@ import lombok.*;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(name = "usage_counters",
-        uniqueConstraints = @UniqueConstraint(columnNames = { "business_id", "year_month" }),
+@Table(
+        name = "usage_counters",
+        uniqueConstraints = @UniqueConstraint(
+                columnNames = {"business_id", "usage_period"}
+        ),
         indexes = {
                 @Index(name = "idx_usage_business", columnList = "business_id"),
-                @Index(name = "idx_usage_period", columnList = "year_month")
-        })
+                @Index(name = "idx_usage_period", columnList = "usage_period")
+        }
+)
 public class UsageCounter {
 
     @Id
@@ -22,15 +26,13 @@ public class UsageCounter {
     @Column(name = "business_id", nullable = false)
     private Long businessId;
 
-    /** Format: YYYY-MM, e.g. "2026-02" */
-    @Column(name = "`year_month`", nullable = false, length = 7)
+    /** Format: YYYY-MM */
+    @Column(name = "usage_period", nullable = false, length = 7)
     private String yearMonth;
 
-    /** Number of invoices created in this month */
     @Column(nullable = false)
     private Long invoiceCount = 0L;
 
-    /** Number of AI generations in this month */
     @Column(nullable = false)
     private Long aiCount = 0L;
 }
