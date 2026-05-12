@@ -119,6 +119,27 @@
 
 > **Frontend usage:** Called by `BillingHistory.jsx` to render the payment history table.
 
+### Invoice PDF — Print Endpoint (NEW)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/api/invoices/{id}/print` | JWT | Print-optimized PDF with page numbers and enhanced discount display |
+
+#### GET /v1/api/invoices/{id}/print
+
+Generates a **print-optimized PDF** with the following enhancements:
+
+**Features:**
+- **Page Numbers**: Footer shows `"BusinessName | Page X"` on every page
+- **Enhanced Item Table**: 8 columns showing full discount breakdown:
+  - No, Product, Qty, Unit Price, **Disc %, Disc Amt, Final Price**, Line Total
+- **Discount Summary Box**: Displays Original Subtotal → Total Discounts → calculation
+- **Professional Footer**: "Thank you for your business!"
+
+**Use Case:** Physical printing, professional invoices for customers.
+
+**Response:** PDF file with `Content-Disposition: attachment` (filename: `invoice-{id}-print.pdf`)
+
 ### Subscriptions — Cancel
 
 | Method | Path | Auth | Description |
@@ -257,7 +278,7 @@ All 22 controllers now have `@Tag` + `@Operation` + `@ApiResponse` annotations f
 | `AuthController` | Auth | `register`, `login`, `me`, `refresh`, `logout` |
 | `DashboardController` | Dashboard | `summary` |
 | `InvoiceController` | Invoices | `create`, `getById`, `getByNumber`, `list`, `archived`, `byCustomer`, `update`, `updateStatus`, `archive`, `restore` |
-| `InvoicePdfController` | Invoice PDF | `download/{id}`, `preview/{id}` |
+| `InvoicePdfController` | Invoice PDF | `download/{id}`, `preview/{id}`, **`print/{id}`** |
 | `ProductsController` | Products | `create`, `update`, `delete`, `getById`, `list`, `archive`, `restore`, `archived` |
 | `ProductBatchController` | Product Batches | `addStock`, `byProduct`, `getById`, `delete` |
 | `CategoryController` | Categories | `create`, `list` |
@@ -411,7 +432,9 @@ The `InvoicePdfService` now automatically fetches the latest **Business Profile*
 | **Contact Info** | Displays business `address` and `phone` in the sender section. |
 | **Brand Color** | Table headers use the `brandColor` from the profile (e.g., `#007bff`). |
 | **Logo Support** | Decodes Base64 logo from profile; falls back to static asset if missing. |
-| **Discounts** | Added "Discount" column to items table and total savings breakdown. |
+| **Discounts** | Line items show: Unit Price → Discount % → Discount Amt → Final Price → Line Total. |
+| **Discount Summary Box** | Displays Original Subtotal and Total Discounts before Grand Total. |
+| **Page Numbers** | Print-optimized PDF includes page footer: "BusinessName \| Page X". |
 
 ### Updated Invoice DTOs
 

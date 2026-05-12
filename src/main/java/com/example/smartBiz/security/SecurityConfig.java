@@ -13,11 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.web.cors.*;
 
 import java.util.List;
 
@@ -33,9 +30,12 @@ public class SecurityConfig {
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
 
-    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter,
-                          CustomAuthenticationEntryPoint authenticationEntryPoint,
-                          CustomAccessDeniedHandler accessDeniedHandler) {
+    public SecurityConfig(
+            JwtFilter jwtFilter,
+            RateLimitFilter rateLimitFilter,
+            CustomAuthenticationEntryPoint authenticationEntryPoint,
+            CustomAccessDeniedHandler accessDeniedHandler
+    ) {
         this.jwtFilter = jwtFilter;
         this.rateLimitFilter = rateLimitFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
@@ -46,30 +46,34 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                // ✅ Enable CORS first
-                .cors(cors -> {
-                })
-                // ✅ Disable CSRF for APIs
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                // ✅ Stateless session (JWT)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // ✅ Allow preflight + auth endpoints
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // ✅ preflight
-                        .requestMatchers("/v1/api/auth/login", "/v1/api/auth/register", "/v1/api/auth/refresh", "/v1/api/auth/logout").permitAll() // ✅ login/register/refresh/logout only
-                        .requestMatchers("/v1/api/payments/notify").permitAll() // ✅ PayHere server-to-server callback
-                        .requestMatchers(HttpMethod.GET, "/v1/api/payments/status/**").permitAll() // ✅ PayHere status polling (post-redirect)
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // ✅
-                                                                                                              // Swagger
-                        .anyRequest().authenticated())
-                // ✅ JSON error responses for auth/access denied
+
+                        // Public endpoints
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers("/v1/api/auth/**").permitAll()
+
+                        .requestMatchers("/v1/api/payments/notify").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/v1/api/payments/status/**").permitAll()
+
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/v1/api/plans/active").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/v1/api/public/testimonials").permitAll()
+
+                        // Everything else secured
+                        .anyRequest().authenticated()
+                )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)
                 )
-                // ✅ JWT filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                // ✅ Rate Limit Filter (After JWT so context is populated for user auth)
                 .addFilterAfter(rateLimitFilter, JwtFilter.class);
 
         return http.build();
@@ -80,7 +84,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // optional (not required for this simple login flow)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
@@ -88,24 +91,22 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration config = new CorsConfiguration();
 
-        // ✅ Use patterns (more reliable than setAllowedOrigins)
-        if (allowedOrigins != null && !allowedOrigins.isEmpty()) {
-            config.setAllowedOriginPatterns(allowedOrigins);
-        } else {
-            config.setAllowedOriginPatterns(List.of("*")); // Fallback if property is empty though shouldn't happen
-        }
+        config.setAllowedOriginPatterns(
+                allowedOrigins != null && !allowedOrigins.isEmpty()
+                        ? allowedOrigins
+                        : List.of("*")
+        );
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
-        // If you ever return JWT in response header and want frontend to read it:
-        // config.setExposedHeaders(List.of("Authorization"));
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
+
         return source;
     }
 }

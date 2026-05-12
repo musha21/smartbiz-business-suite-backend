@@ -62,4 +62,22 @@ public class InvoicePdfController {
                 .body(pdfBytes);
     }
 
+    @Operation(summary = "Print invoice PDF", description = "Generates a print-optimized PDF with page numbers and enhanced discount display for physical printing.")
+    @ApiResponse(responseCode = "200", description = "Print-optimized PDF returned")
+    @GetMapping("/{id}/print")
+    public ResponseEntity<byte[]> printInvoicePdf(@Parameter(description = "Invoice ID") @PathVariable(name = "id") Long id) {
+
+        byte[] pdfBytes = invoicePdfService.generateInvoicePdfForPrint(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename("invoice-" + id + "-print.pdf")
+                .build());
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
+    }
+
 }
