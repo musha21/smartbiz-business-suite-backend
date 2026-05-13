@@ -1,42 +1,47 @@
 package com.example.smartBiz.service.impl;
 
-import com.example.smartBiz.entity.AdminLog;
-import com.example.smartBiz.repository.AdminLogRepository;
+import com.example.smartBiz.entity.AuditLog;
+import com.example.smartBiz.repository.AuditLogRepo;
+import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.AuditLogService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AuditLogServiceImpl implements AuditLogService {
 
-    private final AdminLogRepository adminLogRepository;
-
-    public AuditLogServiceImpl(AdminLogRepository adminLogRepository) {
-        this.adminLogRepository = adminLogRepository;
-    }
+    private final AuditLogRepo auditLogRepo;
 
     @Override
-    public void log(String level, String message) {
-        AdminLog log = new AdminLog();
-        log.setLevel(level);
-        log.setMessage(message);
-        log.setCreatedAt(LocalDateTime.now());
-        adminLogRepository.save(log);
-    }
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // Ensure log is saved even if main transaction fails
+    public void log(String action, String resource, Long resourceId, String details) {
+        try {
+            CustomUserPrincipal principal = CustomUserPrincipal.getCurrent();
+            
+            AuditLog.AuditLogBuilder builder = AuditLog.builder()
+                    .action(action)
+                    .resource(resource)
+                    .resourceId(resourceId)
+                    .details(details);
 
-    @Override
-    public void info(String message) {
-        log("INFO", message);
-    }
+            if (principal != null) {
+                builder.userId(principal.getUserId())
+                       .username(principal.getUsername())
+                       .businessId(principal.getBusinessId());
+            } else {
+                builder.userId(0L)
+                       .username("SYSTEM")
+                       .details(details != null ? details + " (No active user context)" : "No active user context");
+            }
 
-    @Override
-    public void warn(String message) {
-        log("WARN", message);
-    }
-
-    @Override
-    public void error(String message) {
-        log("ERROR", message);
+            auditLogRepo.save(builder.build());
+        } catch (Exception e) {
+            log.error("Failed to save audit log: {}", e.getMessage());
+        }
     }
 }

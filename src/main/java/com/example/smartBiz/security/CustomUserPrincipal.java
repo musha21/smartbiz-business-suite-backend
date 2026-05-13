@@ -8,6 +8,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class CustomUserPrincipal {
     private final Long userId;
+    private final String username;
     private final Long businessId;
 
     public static CustomUserPrincipal getCurrent() {

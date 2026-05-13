@@ -1,7 +1,7 @@
 # SmartBiz API Endpoints & DTOs — New/Updated Reference
 
-> **Last updated:** May 8, 2026
-> **Scope:** PayHere integration, payment history, subscription cancellation, **Invoice PDF dynamic branding, line/total discounts, and full invoice update logic**
+> **Last updated:** May 13, 2026 (Landing Page Admin Controls added)
+> **Scope:** PayHere integration, payment history, subscription cancellation, **Partner Logo Management (Base64 uploads)**, Invoice PDF dynamic branding, **Landing Page Admin Controls (FAQ, Stats, Hero, Integrations)**
 
 ---
 
@@ -13,6 +13,8 @@
 - [Updated Controllers (Swagger)](#updated-controllers--swagger)
 - [Updated Entities](#updated-entities)
 - [Updated Enums](#updated-enums)
+- [Partner Logos](#partner-logos--crud--public-apis)
+- [Landing Page Admin Controls](#landing-page-admin-controls)
 
 ---
 
@@ -298,6 +300,14 @@ All 22 controllers now have `@Tag` + `@Operation` + `@ApiResponse` annotations f
 | `AdminPlanLimitController` | Admin - Plan Limits | `upsert`, `get` |
 | `AdminSubscriptionController` | Admin - Subscriptions | `assign`, **`cancel/{businessId}`** |
 | **PaymentController** | **Payments** | **`checkout`**, **`notify`**, **`status/{orderId}`**, **`history`** |
+| **`AdminFAQController`** | **Admin - FAQs** | **`GET/POST/PUT/DELETE/PATCH`** |
+| **`PublicFAQController`** | **Public - FAQs** | **`GET`** |
+| **`AdminLandingStatController`** | **Admin - Stats** | **`GET/POST/PUT/DELETE/PATCH`** |
+| **`PublicLandingStatController`** | **Public - Stats** | **`GET`** |
+| **`AdminHeroContentController`** | **Admin - Hero** | **`GET/PUT`** |
+| **`PublicHeroContentController`** | **Public - Hero** | **`GET`** |
+| **`AdminTrustIntegrationController`** | **Admin - Integrations** | **`GET/POST/PUT/DELETE/PATCH/reorder`** |
+| **`PublicTrustIntegrationController`** | **Public - Integrations** | **`GET`** |
 
 ---
 
@@ -354,6 +364,7 @@ public enum SubscriptionStatus {
 | File | Change |
 |------|--------|
 | `SecurityConfig.java` | Whitelisted `/v1/api/payments/notify` (no JWT required) |
+| `SecurityConfig.java` | Whitelisted `/v1/api/public/**` (no JWT required for landing page content) |
 | `JwtFilter.java` | Skips `/v1/api/payments/notify` path |
 | `OwnerSubscriptionController.java` | **Fixed:** `GET /my` now uses JWT principal instead of `businessId` query param (was a security hole) |
 
@@ -464,4 +475,265 @@ The `InvoicePdfService` now automatically fetches the latest **Business Profile*
 3. Processes new items from request, deducting from product batches.
 4. Recalculates `totalAmount` and `totalDiscount`.
 5. Syncs `Products.stock_qty` across all batches.
+
+---
+
+## May 13 Updates — Partner Logo Management
+
+### Partner Logos — CRUD & Public APIs
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | Create a new partner logo (Base64) |
+| `PUT` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | Update an existing partner logo |
+| `DELETE` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | Delete a partner logo |
+| `GET` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | List all partner logos (for admin dashboard) |
+| `GET` | `/v1/api/public/partner-logos/active` | **Public** | List all active logos for landing page (ordered) |
+
+### PartnerLogoDto
+**Package:** `com.example.smartBiz.dto`
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `id` | `Long` | | Primary key (read-only) |
+| `companyName` | `String` | Required | Name of the partner company |
+| `logo` | `String` | Required (Base64) | PNG/JPG image encoded as Base64 string (maps to `logo_url` column) |
+| `displayOrder` | `Integer` | Default: `0` | Order of appearance on the landing page |
+| `active` | `Boolean` | Default: `true` | Whether the logo is visible to the public |
+
+> **Note:** The `logo` field must start with either `data:image/png;base64,` or `data:image/jpeg;base64,`. Max size depends on server `max-http-header-size` and `max-swallow-size`, but typically supports up to 5MB.
+>
+> **Database Mapping:** The `logo` field in the entity maps to the `logo_url` column in the `partner_logos` table.
+
+---
+
+## Landing Page Admin Controls
+
+Complete backend APIs for managing landing page content: FAQ, Stats, Hero Content, and Trust Integrations.
+
+**Base URLs:**
+- Admin: `/v1/api/admin/**` (requires JWT + ADMIN role)
+- Public: `/v1/api/public/**` (open access)
+
+### FAQ Management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/api/admin/faqs` | JWT (ADMIN) | List all FAQs (admin view) |
+| `POST` | `/v1/api/admin/faqs` | JWT (ADMIN) | Create FAQ |
+| `PUT` | `/v1/api/admin/faqs/{id}` | JWT (ADMIN) | Update FAQ |
+| `DELETE` | `/v1/api/admin/faqs/{id}` | JWT (ADMIN) | Delete FAQ |
+| `PATCH` | `/v1/api/admin/faqs/{id}/toggle` | JWT (ADMIN) | Toggle active status |
+| `GET` | `/v1/api/public/faqs` | **Public** | List active FAQs only |
+
+**Categories:** `Billing`, `Security`, `Usage`, `Support`, `General`
+
+**Default Data (6 FAQs seeded on startup):**
+- Is there a free trial available? (Billing)
+- How secure is my business data? (Security)
+- Can I import data from my existing system? (Usage)
+- What payment methods do you accept? (Billing)
+- How do I get support if I need help? (Support)
+- Can I use SmartBiz on mobile devices? (Usage)
+
+### Landing Stats
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/api/admin/stats` | JWT (ADMIN) | List all stats (admin view) |
+| `POST` | `/v1/api/admin/stats` | JWT (ADMIN) | Create stat |
+| `PUT` | `/v1/api/admin/stats/{id}` | JWT (ADMIN) | Update stat |
+| `DELETE` | `/v1/api/admin/stats/{id}` | JWT (ADMIN) | Delete stat |
+| `PATCH` | `/v1/api/admin/stats/{id}/toggle` | JWT (ADMIN) | Toggle visibility |
+| `GET` | `/v1/api/public/stats` | **Public** | List active stats only |
+
+**Icon Options:** `Users`, `Zap`, `TrendingUp`, `Shield`, `Box`, `CreditCard`, `BarChart3`, `Cloud`
+
+**Default Data (4 stats seeded on startup):**
+- Active Businesses: 2,000+ (Users)
+- Uptime Guaranteed: 99.9% (Zap)
+- Revenue Processed: $50M+ (TrendingUp)
+- Security Certified: SOC 2 (Shield)
+
+### Hero Content (Single Record)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/api/admin/hero` | JWT (ADMIN) | Get current hero content |
+| `PUT` | `/v1/api/admin/hero` | JWT (ADMIN) | Update hero content (create if not exists) |
+| `GET` | `/v1/api/public/hero` | **Public** | Get public hero content |
+
+**Fields:**
+- `badgeText`: Small badge above headline (e.g., "Your Smart POS Software Solution")
+- `headline`: Main headline (e.g., "The Future of Business Management")
+- `subheadline`: Longer description text
+- `ctaText`: Button text (e.g., "Get Free Demo")
+
+**Default Data (seeded on startup):**
+```json
+{
+  "badgeText": "Your Smart POS Software Solution",
+  "headline": "The Future of Business Management",
+  "subheadline": "Everything you need to run your store smoothly, in one smart platform. Streamline operations, boost sales, and delight customers with our AI-powered business suite.",
+  "ctaText": "Get Free Demo"
+}
+```
+
+### Trust Integrations
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/api/admin/integrations` | JWT (ADMIN) | List all integrations (admin view) |
+| `POST` | `/v1/api/admin/integrations` | JWT (ADMIN) | Create integration |
+| `PUT` | `/v1/api/admin/integrations/{id}` | JWT (ADMIN) | Update integration |
+| `DELETE` | `/v1/api/admin/integrations/{id}` | JWT (ADMIN) | Delete integration |
+| `PATCH` | `/v1/api/admin/integrations/{id}/toggle` | JWT (ADMIN) | Toggle visibility |
+| `PUT` | `/v1/api/admin/integrations/reorder` | JWT (ADMIN) | Bulk reorder (accepts list of `{id, displayOrder}`) |
+| `GET` | `/v1/api/public/integrations` | **Public** | List active integrations only |
+
+**Default Data (6 integrations seeded on startup):**
+- Zapier (Zap)
+- Stripe (Shield)
+- AWS (Cloud)
+- Shopify (Box)
+- PayPal (CreditCard)
+- Analytics (BarChart3)
+
+### Landing Page DTOs
+
+#### FAQDto
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Primary key |
+| `question` | `String` | FAQ question (max 500 chars) |
+| `answer` | `String` | FAQ answer (text) |
+| `category` | `String` | Billing, Security, Usage, Support, General |
+| `displayOrder` | `Integer` | Sort order |
+| `active` | `Boolean` | Visible to public |
+| `createdAt` | `LocalDateTime` | Auto-set |
+| `updatedAt` | `LocalDateTime` | Auto-update |
+
+#### LandingStatDto
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Primary key |
+| `label` | `String` | Stat label (e.g., "Active Businesses") |
+| `value` | `String` | Stat value (e.g., "2,000+") |
+| `icon` | `String` | Lucide icon name |
+| `displayOrder` | `Integer` | Sort order |
+| `active` | `Boolean` | Visible to public |
+| `createdAt` | `LocalDateTime` | Auto-set |
+| `updatedAt` | `LocalDateTime` | Auto-update |
+
+#### HeroContentDto
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Primary key (single record) |
+| `badgeText` | `String` | Badge above headline |
+| `headline` | `String` | Main headline |
+| `subheadline` | `String` | Description text |
+| `ctaText` | `String` | CTA button text |
+| `updatedAt` | `LocalDateTime` | Auto-update |
+
+#### TrustIntegrationDto
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Primary key |
+| `label` | `String` | Integration name |
+| `icon` | `String` | Lucide icon name |
+| `displayOrder` | `Integer` | Sort order |
+| `active` | `Boolean` | Visible to public |
+| `createdAt` | `LocalDateTime` | Auto-set |
+| `updatedAt` | `LocalDateTime` | Auto-update |
+
+#### ReorderDto (for bulk reorder)
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Integration ID |
+| `displayOrder` | `Integer` | New sort order |
+
+### New Controllers
+
+| Controller | Tag | Endpoints |
+|------------|-----|-----------|
+| `AdminFAQController` | Admin - FAQs | `GET/POST/PUT/DELETE/PATCH` |
+| `PublicFAQController` | Public - FAQs | `GET` |
+| `AdminLandingStatController` | Admin - Stats | `GET/POST/PUT/DELETE/PATCH` |
+| `PublicLandingStatController` | Public - Stats | `GET` |
+| `AdminHeroContentController` | Admin - Hero | `GET/PUT` |
+| `PublicHeroContentController` | Public - Hero | `GET` |
+| `AdminTrustIntegrationController` | Admin - Integrations | `GET/POST/PUT/DELETE/PATCH/reorder` |
+| `PublicTrustIntegrationController` | Public - Integrations | `GET` |
+
+### Database Tables
+
+**faqs** — FAQ management
+```sql
+CREATE TABLE faqs (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    question VARCHAR(500) NOT NULL,
+    answer TEXT NOT NULL,
+    category VARCHAR(50),
+    display_order INT DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**landing_stats** — Landing page statistics
+```sql
+CREATE TABLE landing_stats (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    label VARCHAR(100) NOT NULL,
+    value VARCHAR(50) NOT NULL,
+    icon VARCHAR(50) DEFAULT 'TrendingUp',
+    display_order INT DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**hero_content** — Single hero section record
+```sql
+CREATE TABLE hero_content (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    badge_text VARCHAR(200),
+    headline VARCHAR(300),
+    subheadline TEXT,
+    cta_text VARCHAR(100),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+**trust_integrations** — Trust bar integrations
+```sql
+CREATE TABLE trust_integrations (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    label VARCHAR(100) NOT NULL,
+    icon VARCHAR(50) DEFAULT 'Zap',
+    display_order INT DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### Testing Commands
+
+```bash
+# Public endpoints (no auth)
+curl http://localhost:8080/v1/api/public/faqs
+curl http://localhost:8080/v1/api/public/stats
+curl http://localhost:8080/v1/api/public/hero
+curl http://localhost:8080/v1/api/public/integrations
+curl http://localhost:8080/v1/api/public/partner-logos
+
+# Admin endpoints (with JWT)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/v1/api/admin/faqs
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"question":"Test","answer":"Answer","category":"General"}' \
+  http://localhost:8080/v1/api/admin/faqs
+```
 

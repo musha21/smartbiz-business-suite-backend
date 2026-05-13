@@ -35,6 +35,7 @@ public class JwtFilter extends OncePerRequestFilter {
             "/v1/api/payments/status",
             "/v1/api/plans/active",
             "/v1/api/public/testimonials",
+            "/v1/api/partner-logos",
             "/swagger-ui",
             "/v3/api-docs"
     );
@@ -128,7 +129,8 @@ public class JwtFilter extends OncePerRequestFilter {
             }
 
             // ✅ Authentication set
-            CustomUserPrincipal principal = new CustomUserPrincipal(userId, businessId);
+            String username = claims.getSubject();
+            CustomUserPrincipal principal = new CustomUserPrincipal(userId, username, businessId);
 
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(

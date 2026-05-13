@@ -64,7 +64,8 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.GET, "/v1/api/plans/active").permitAll()
 
-                        .requestMatchers(HttpMethod.GET, "/v1/api/public/testimonials").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/api/partner-logos/**").permitAll()
 
                         // Everything else secured
                         .anyRequest().authenticated()
