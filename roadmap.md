@@ -150,4 +150,60 @@
 
 ---
 
-*Last updated: April 2026*
+---
+
+## Phase 7 — AI Chatbot Improvements (Ongoing)
+
+> Full detail: `C:\Users\Musharaf\.windsurf\plans\ai-improvements-c80019.md`
+
+### Phase A — Intent Intelligence (Week 1–2)
+
+| Priority | Task | Motivation |
+|----------|------|------------|
+| **P1** | Language auto-detect — reply in user's language | Add one line to system prompt; zero cost, handles Tamil/Sinhala/Arabic users |
+| **P1** | Month-over-month growth % in SALES response | Currently shows raw numbers; % change gives real insight |
+| **P1** | Proactive cash flow warning in ADVISOR | If unpaid > 30% of monthly sales, flag automatically |
+| **P1** | Retry on empty/refusal AI response | If OpenAI returns very short answer, retry once with enriched prompt |
+| **P2** | Dynamic date range parsing | Detect "Q1", "last 3 months", "January" and map to correct date range |
+| **P2** | OpenAI-based intent classification | Route via GPT classify prompt — handles any phrasing/typo automatically |
+
+### Phase B — Richer Data Context (Week 2–3)
+
+| Priority | Task | Motivation |
+|----------|------|------------|
+| **P1** | Top 5 best-selling products | Add to STOCK & ADVISOR context |
+| **P1** | Top customers by revenue | Add to CUSTOMER context |
+| **P2** | Expense breakdown by category | Show top 3 cost categories in ADVISOR |
+| **P2** | Multi-intent detection | "show invoices and today's sales" fetches both datasets |
+
+### Phase C — Conversation Memory (Week 3–4)
+
+| Priority | Task | Motivation |
+|----------|------|------------|
+| **P1** | Persist chat history in DB (`ChatHistory` entity) | Survive page refresh; no longer depends on frontend sending history |
+| **P1** | Follow-up question awareness | "what about last year?" uses previous intent context |
+| **P2** | Return `sessionId` in `ChatResponseDto` | Frontend tracks continuity across refreshes |
+
+### Phase D — Speed & UX (Week 4–6)
+
+| Priority | Task | Motivation |
+|----------|------|------------|
+| **P1** | Response caching (Caffeine/Redis, 10 min) | Saves AI credits for repeated queries within same business |
+| **P2** | Streaming responses via SSE | Word-by-word output — feels instant vs waiting for full response |
+| **P2** | Proactive alerts on dashboard load | Auto-pop chatbot if overdue invoices / low stock exist |
+| **P3** | Voice input (Web Speech API, frontend only) | Mic button → transcript fills chat input |
+
+### Phase E — Safety & Quality (Ongoing)
+
+| Priority | Task | Motivation |
+|----------|------|------------|
+| **P1** | Log `intent` field in `AiUsageLog` | See which features consume most credits |
+| **P2** | Admin chat log dashboard | View all chat messages per business, top questions |
+| **P2** | Confidence fallback routing | Very long GENERAL messages → route to ADVISOR |
+
+**New files (Phase C):** `entity/ChatHistory.java`, `repository/ChatHistoryRepo.java`
+**Modified files:** `ChatbotServiceImpl.java`, `ChatResponseDto.java`, `AiUsageLog.java`, `AiChatController.java`
+
+---
+
+*Last updated: May 2026*

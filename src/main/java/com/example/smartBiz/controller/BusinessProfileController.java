@@ -6,8 +6,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.example.smartBiz.security.CustomUserPrincipal;
 import com.example.smartBiz.service.BusinessProfileService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/v1/api/business/profile")
@@ -43,5 +47,14 @@ public class BusinessProfileController {
     public ResponseEntity<BusinessProfileDto> updateProfile(@RequestBody BusinessProfileDto dto) {
         Long businessId = CustomUserPrincipal.getCurrent().getBusinessId();
         return ResponseEntity.ok(profileService.updateProfile(businessId, dto));
+    }
+
+    @Operation(summary = "Upload business logo (multipart/form-data)", description = "Uploads an image file as the business logo. Converted to Base64 data URL and stored.")
+    @ApiResponse(responseCode = "200", description = "Logo uploaded")
+    @PostMapping(value = "/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<BusinessProfileDto> uploadLogo(
+            @RequestParam("logo") MultipartFile logo) throws IOException {
+        Long businessId = CustomUserPrincipal.getCurrent().getBusinessId();
+        return ResponseEntity.ok(profileService.uploadLogo(businessId, logo));
     }
 }

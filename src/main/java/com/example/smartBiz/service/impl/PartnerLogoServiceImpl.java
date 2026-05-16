@@ -6,7 +6,10 @@ import com.example.smartBiz.repository.PartnerLogoRepo;
 import com.example.smartBiz.service.PartnerLogoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -17,33 +20,29 @@ public class PartnerLogoServiceImpl implements PartnerLogoService {
     private final PartnerLogoRepo partnerLogoRepo;
 
     @Override
-    public PartnerLogoDto create(PartnerLogoDto dto) {
+    public PartnerLogoDto create(String companyName, Integer displayOrder, Boolean active, MultipartFile logo) throws IOException {
         PartnerLogo partnerLogo = new PartnerLogo();
-        partnerLogo.setCompanyName(dto.getCompanyName());
-        validateLogo(dto.getLogo());
-        partnerLogo.setLogo(dto.getLogo());
-        partnerLogo.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
-        partnerLogo.setActive(dto.getActive() != null ? dto.getActive() : true);
-        
-        PartnerLogo saved = partnerLogoRepo.save(partnerLogo);
-        return mapToDto(saved);
+        partnerLogo.setCompanyName(companyName);
+        partnerLogo.setLogo(toBase64DataUrl(logo));
+        partnerLogo.setDisplayOrder(displayOrder != null ? displayOrder : 0);
+        partnerLogo.setActive(active != null ? active : true);
+
+        return mapToDto(partnerLogoRepo.save(partnerLogo));
     }
 
     @Override
-    public PartnerLogoDto update(Long id, PartnerLogoDto dto) {
+    public PartnerLogoDto update(Long id, String companyName, Integer displayOrder, Boolean active, MultipartFile logo) throws IOException {
         PartnerLogo partnerLogo = partnerLogoRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Partner logo not found with id: " + id));
-        
-        partnerLogo.setCompanyName(dto.getCompanyName());
-        if (dto.getLogo() != null) {
-            validateLogo(dto.getLogo());
-            partnerLogo.setLogo(dto.getLogo());
+
+        partnerLogo.setCompanyName(companyName);
+        partnerLogo.setDisplayOrder(displayOrder != null ? displayOrder : partnerLogo.getDisplayOrder());
+        partnerLogo.setActive(active != null ? active : partnerLogo.getActive());
+        if (logo != null && !logo.isEmpty()) {
+            partnerLogo.setLogo(toBase64DataUrl(logo));
         }
-        partnerLogo.setDisplayOrder(dto.getDisplayOrder());
-        partnerLogo.setActive(dto.getActive());
-        
-        PartnerLogo updated = partnerLogoRepo.save(partnerLogo);
-        return mapToDto(updated);
+
+        return mapToDto(partnerLogoRepo.save(partnerLogo));
     }
 
     @Override
@@ -65,6 +64,26 @@ public class PartnerLogoServiceImpl implements PartnerLogoService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public PartnerLogoDto toggleActive(Long id) {
+        PartnerLogo partnerLogo = partnerLogoRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Partner logo not found with id: " + id));
+        partnerLogo.setActive(!partnerLogo.getActive());
+        return mapToDto(partnerLogoRepo.save(partnerLogo));
+    }
+
+    private String toBase64DataUrl(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("Logo file is required");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new RuntimeException("Invalid file type. Only image files are supported.");
+        }
+        String base64 = Base64.getEncoder().encodeToString(file.getBytes());
+        return "data:" + contentType + ";base64," + base64;
+    }
+
     private PartnerLogoDto mapToDto(PartnerLogo partnerLogo) {
         return PartnerLogoDto.builder()
                 .id(partnerLogo.getId())
@@ -75,22 +94,5 @@ public class PartnerLogoServiceImpl implements PartnerLogoService {
                 .createdAt(partnerLogo.getCreatedAt())
                 .updatedAt(partnerLogo.getUpdatedAt())
                 .build();
-    }
-
-    private void validateLogo(String logoData) {
-        if (logoData == null || logoData.isBlank()) {
-            throw new RuntimeException("Logo data is required");
-        }
-        
-        // Support common image prefixes
-        boolean isValidPrefix = logoData.startsWith("data:image/png;base64,") || 
-                               logoData.startsWith("data:image/jpeg;base64,") || 
-                               logoData.startsWith("data:image/jpg;base64,") ||
-                               logoData.startsWith("data:image/webp;base64,") ||
-                               logoData.startsWith("data:image/svg+xml;base64,");
-                               
-        if (!isValidPrefix) {
-            throw new RuntimeException("Invalid image format. Supported: PNG, JPG, JPEG, WEBP, SVG");
-        }
     }
 }

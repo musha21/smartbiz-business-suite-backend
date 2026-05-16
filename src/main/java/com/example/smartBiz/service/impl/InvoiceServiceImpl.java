@@ -14,6 +14,7 @@ import com.example.smartBiz.service.UsageCounterService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -98,11 +99,13 @@ public class InvoiceServiceImpl implements InvoiceService {
     private String generateInvoiceNumber(Long businessId) {
         BusinessProfileDto profile = businessProfileService.getProfile(businessId);
         String prefix = (profile != null && profile.getInvoicePrefix() != null && !profile.getInvoicePrefix().isBlank())
-                ? profile.getInvoicePrefix()
+                ? profile.getInvoicePrefix().toUpperCase()
                 : "INV";
 
-        Long nextVal = sequenceService.getNextValue(businessId, "INVOICE");
-        return prefix + "-" + nextVal;
+        int fiscalYear = LocalDate.now().getYear() % 100;
+        Long nextVal = sequenceService.getNextValue(businessId, "INVOICE", fiscalYear);
+        String formatted = String.format("%02d%06d", fiscalYear, nextVal);
+        return prefix + "-" + formatted;
     }
 
     /**

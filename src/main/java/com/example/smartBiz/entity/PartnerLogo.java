@@ -21,7 +21,8 @@ public class PartnerLogo {
     @Column(nullable = false)
     private String companyName;
 
-    @Column(name = "logo_url", columnDefinition = "LONGTEXT", nullable = false)
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     private String logo;
 
     @Column(nullable = false)

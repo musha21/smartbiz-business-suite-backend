@@ -1,6 +1,8 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.*;
+import com.example.smartBiz.entity.SystemSetting;
+import com.example.smartBiz.repository.SystemSettingRepo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -10,10 +12,12 @@ import com.example.smartBiz.entity.AdminLog;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/api/admin")
@@ -22,10 +26,12 @@ import java.util.List;
 public class AdminController {
 
     private final AdminService adminService;
+    private final SystemSettingRepo systemSettingRepo;
 
     @Autowired
-    public AdminController(AdminService adminService) {
+    public AdminController(AdminService adminService, SystemSettingRepo systemSettingRepo) {
         this.adminService = adminService;
+        this.systemSettingRepo = systemSettingRepo;
     }
 
     /**
@@ -106,5 +112,34 @@ public class AdminController {
             throw new ResourceNotFoundException("Business Not Found: " + businessId);
         }
         return businessAdminDto;
+    }
+
+    @Operation(summary = "Get current OpenAI API key (masked)", description = "Returns the active OpenAI API key with all but last 4 characters masked.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/settings/openai-key")
+    public ResponseEntity<Map<String, String>> getOpenAiKey() {
+        String key = systemSettingRepo.findByKey("openai.api.key")
+                .map(SystemSetting::getValue)
+                .orElse(null);
+        String masked = (key != null && key.length() > 4)
+                ? "sk-..." + key.substring(key.length() - 4)
+                : (key != null ? "****" : "(using application.properties default)");
+        return ResponseEntity.ok(Map.of("maskedKey", masked, "hasDbKey", String.valueOf(key != null && !key.isBlank())));
+    }
+
+    @Operation(summary = "Update OpenAI API key", description = "Saves a new OpenAI API key to the database. Takes effect immediately.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/settings/openai-key")
+    public ResponseEntity<Map<String, String>> updateOpenAiKey(@RequestBody Map<String, String> body) {
+        String newKey = body.get("apiKey");
+        if (newKey == null || newKey.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "apiKey must not be empty"));
+        }
+        SystemSetting setting = systemSettingRepo.findByKey("openai.api.key")
+                .orElse(SystemSetting.builder().key("openai.api.key").build());
+        setting.setValue(newKey.trim());
+        systemSettingRepo.save(setting);
+        adminService.logAction("INFO", "OpenAI API key updated by admin");
+        return ResponseEntity.ok(Map.of("message", "API key updated successfully"));
     }
 }

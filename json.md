@@ -482,28 +482,49 @@ The `InvoicePdfService` now automatically fetches the latest **Business Profile*
 
 ### Partner Logos — CRUD & Public APIs
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | Create a new partner logo (Base64) |
-| `PUT` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | Update an existing partner logo |
-| `DELETE` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | Delete a partner logo |
-| `GET` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | List all partner logos (for admin dashboard) |
-| `GET` | `/v1/api/public/partner-logos/active` | **Public** | List all active logos for landing page (ordered) |
+| Method | Path | Auth | Content-Type | Description |
+|--------|------|------|--------------|-------------|
+| `POST` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | `multipart/form-data` | Create a new partner logo (file upload) |
+| `PUT` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | `multipart/form-data` | Update an existing partner logo |
+| `DELETE` | `/v1/api/admin/partner-logos/{id}` | JWT (ADMIN) | — | Delete a partner logo |
+| `GET` | `/v1/api/admin/partner-logos` | JWT (ADMIN) | — | List all partner logos (for admin dashboard) |
+| `PATCH` | `/v1/api/admin/partner-logos/{id}/toggle` | JWT (ADMIN) | — | Toggle active status |
+| `GET` | `/v1/api/partner-logos` | **Public** | — | List all active logos for landing page (ordered) |
 
-### PartnerLogoDto
-**Package:** `com.example.smartBiz.dto`
+#### POST /v1/api/admin/partner-logos (multipart/form-data)
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | `Long` | | Primary key (read-only) |
-| `companyName` | `String` | Required | Name of the partner company |
-| `logo` | `String` | Required (Base64) | PNG/JPG image encoded as Base64 string (maps to `logo_url` column) |
-| `displayOrder` | `Integer` | Default: `0` | Order of appearance on the landing page |
-| `active` | `Boolean` | Default: `true` | Whether the logo is visible to the public |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `companyName` | `String` | Yes | Name of the partner company |
+| `logo` | `MultipartFile` | Yes | Image file (PNG, JPG, JPEG, WEBP, SVG) |
+| `displayOrder` | `Integer` | No (default: `0`) | Sort order on landing page |
+| `active` | `Boolean` | No (default: `true`) | Whether visible to public |
 
-> **Note:** The `logo` field must start with either `data:image/png;base64,` or `data:image/jpeg;base64,`. Max size depends on server `max-http-header-size` and `max-swallow-size`, but typically supports up to 5MB.
+#### PUT /v1/api/admin/partner-logos/{id} (multipart/form-data)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `companyName` | `String` | Yes | Name of the partner company |
+| `logo` | `MultipartFile` | No | New image file (only if replacing) |
+| `displayOrder` | `Integer` | No | Sort order |
+| `active` | `Boolean` | No | Visibility flag |
+
+> **Upload behavior:** The uploaded file is converted server-side to a Base64 data URL (`data:image/png;base64,...`) and stored in the `logo_url` column. The DTO returns the full Base64 data URL.
 >
 > **Database Mapping:** The `logo` field in the entity maps to the `logo_url` column in the `partner_logos` table.
+
+### PartnerLogoDto (Response)
+**Package:** `com.example.smartBiz.dto`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `Long` | Primary key (read-only) |
+| `companyName` | `String` | Name of the partner company |
+| `logo` | `String` | Base64 data URL (`data:image/png;base64,...`) stored from uploaded file |
+| `displayOrder` | `Integer` | Sort order on landing page |
+| `active` | `Boolean` | Whether the logo is visible to the public |
+| `createdAt` | `LocalDateTime` | Auto-set on creation |
+| `updatedAt` | `LocalDateTime` | Auto-updated on save |
 
 ---
 

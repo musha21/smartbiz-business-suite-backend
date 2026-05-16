@@ -9,7 +9,7 @@ import lombok.*;
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "uk_business_sequence_type",
-                        columnNames = {"business_id", "sequence_type"}
+                        columnNames = {"business_id", "sequence_type", "fiscal_year"}
                 )
         }
 )
@@ -28,6 +28,9 @@ public class BusinessSequence {
 
     @Column(name = "sequence_type", nullable = false, length = 50)
     private String sequenceType;
+
+    @Column(name = "fiscal_year", nullable = false)
+    private Integer fiscalYear;
 
     @Column(name = "sequence_last_value", nullable = false)
     private Long lastValue;

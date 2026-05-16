@@ -106,6 +106,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         String taglineStr = (profile != null && profile.getBrandTagline() != null) ? profile.getBrandTagline() : "AI-Powered Business Management Suite";
         String businessAddress = (profile != null && profile.getAddress() != null) ? profile.getAddress() : "";
         String businessPhone = (profile != null && profile.getPhone() != null) ? profile.getPhone() : "";
+        String currency = (profile != null && profile.getCurrency() != null && !profile.getCurrency().isBlank()) ? profile.getCurrency() : "";
         java.awt.Color brandColor = (profile != null && profile.getBrandColor() != null) 
                 ? java.awt.Color.decode(profile.getBrandColor().startsWith("#") ? profile.getBrandColor() : "#" + profile.getBrandColor()) 
                 : new java.awt.Color(230, 230, 230);
@@ -259,9 +260,9 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
                 table.addCell(bodyCell(String.valueOf(index++), Element.ALIGN_CENTER));
                 table.addCell(bodyCell(productName, Element.ALIGN_LEFT));
                 table.addCell(bodyCell(String.valueOf(item.getQuantity()), Element.ALIGN_CENTER));
-                table.addCell(bodyCell(formatMoney(item.getUnitPrice()), Element.ALIGN_RIGHT));
-                table.addCell(bodyCell(formatMoney(item.getDiscountAmount()), Element.ALIGN_RIGHT));
-                table.addCell(bodyCell(formatMoney(item.getLineTotal()), Element.ALIGN_RIGHT));
+                table.addCell(bodyCell(formatMoney(item.getUnitPrice(), currency), Element.ALIGN_RIGHT));
+                table.addCell(bodyCell(formatMoney(item.getDiscountAmount(), currency), Element.ALIGN_RIGHT));
+                table.addCell(bodyCell(formatMoney(item.getLineTotal(), currency), Element.ALIGN_RIGHT));
             }
 
             document.add(table);
@@ -275,15 +276,15 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             totals.setWidths(new float[] { 1.5f, 1f });
 
             totals.addCell(totalsLabel("Subtotal", value));
-            totals.addCell(totalsValue(formatMoney(subtotalVal), value));
+            totals.addCell(totalsValue(formatMoney(subtotalVal, currency), value));
 
             if (invoice.getTotalDiscount() != null && invoice.getTotalDiscount() > 0) {
                 totals.addCell(totalsLabel("Total Discount", value));
-                totals.addCell(totalsValue("-" + formatMoney(invoice.getTotalDiscount()), value));
+                totals.addCell(totalsValue("-" + formatMoney(invoice.getTotalDiscount(), currency), value));
             }
 
             totals.addCell(totalsLabel("Grand Total", label));
-            totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount()), label));
+            totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount(), currency), label));
 
             document.add(totals);
             document.add(new Paragraph(" "));
@@ -342,6 +343,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         String taglineStr = (profile != null && profile.getBrandTagline() != null) ? profile.getBrandTagline() : "AI-Powered Business Management Suite";
         String businessAddress = (profile != null && profile.getAddress() != null) ? profile.getAddress() : "";
         String businessPhone = (profile != null && profile.getPhone() != null) ? profile.getPhone() : "";
+        String currency = (profile != null && profile.getCurrency() != null && !profile.getCurrency().isBlank()) ? profile.getCurrency() : "";
         java.awt.Color brandColor = (profile != null && profile.getBrandColor() != null)
                 ? java.awt.Color.decode(profile.getBrandColor().startsWith("#") ? profile.getBrandColor() : "#" + profile.getBrandColor())
                 : new java.awt.Color(230, 230, 230);
@@ -366,10 +368,10 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             addInvoiceDetails(document, invoice);
 
             // ── 4. Items table (ENHANCED with discount details) ───────────────
-            double subtotalBeforeDiscounts = addEnhancedItemsTable(document, invoice, brandColor);
+            double subtotalBeforeDiscounts = addEnhancedItemsTable(document, invoice, brandColor, currency);
 
             // ── 5. Totals breakdown (ENHANCED with discount summary) ────────────
-            addEnhancedTotals(document, invoice, subtotalBeforeDiscounts);
+            addEnhancedTotals(document, invoice, subtotalBeforeDiscounts, currency);
 
             // ── 6. Footer ──────────────────────────────────────────────────────
             addPrintFooter(document);
@@ -502,7 +504,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         document.add(new Paragraph(" "));
     }
 
-    private double addEnhancedItemsTable(Document document, Invoice invoice, java.awt.Color brandColor) throws DocumentException {
+    private double addEnhancedItemsTable(Document document, Invoice invoice, java.awt.Color brandColor, String currency) throws DocumentException {
         // Table with 8 columns: No, Product, Qty, Unit Price, Discount %, Discount Amt, Final Price, Line Total
         PdfPTable table = new PdfPTable(8);
         table.setWidthPercentage(100);
@@ -539,11 +541,11 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             table.addCell(bodyCell(String.valueOf(index++), Element.ALIGN_CENTER));
             table.addCell(bodyCell(productName, Element.ALIGN_LEFT));
             table.addCell(bodyCell(String.valueOf((int) qty), Element.ALIGN_CENTER));
-            table.addCell(bodyCell(formatMoney(unitPrice), Element.ALIGN_RIGHT));
-            table.addCell(bodyCell(discountPct > 0 ? formatMoney(discountPct) + "%" : "-", Element.ALIGN_CENTER));
-            table.addCell(bodyCell(discountAmt > 0 ? "-" + formatMoney(discountAmt) : "-", Element.ALIGN_RIGHT));
-            table.addCell(bodyCell(formatMoney(finalUnitPrice), Element.ALIGN_RIGHT));
-            table.addCell(bodyCell(formatMoney(lineTotal), Element.ALIGN_RIGHT));
+            table.addCell(bodyCell(formatMoney(unitPrice, currency), Element.ALIGN_RIGHT));
+            table.addCell(bodyCell(discountPct > 0 ? formatMoney(discountPct, "") + "%" : "-", Element.ALIGN_CENTER));
+            table.addCell(bodyCell(discountAmt > 0 ? "-" + formatMoney(discountAmt, currency) : "-", Element.ALIGN_RIGHT));
+            table.addCell(bodyCell(formatMoney(finalUnitPrice, currency), Element.ALIGN_RIGHT));
+            table.addCell(bodyCell(formatMoney(lineTotal, currency), Element.ALIGN_RIGHT));
         }
 
         document.add(table);
@@ -559,7 +561,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         table.addCell(cell);
     }
 
-    private void addEnhancedTotals(Document document, Invoice invoice, double subtotalBeforeDiscounts) throws DocumentException {
+    private void addEnhancedTotals(Document document, Invoice invoice, double subtotalBeforeDiscounts, String currency) throws DocumentException {
         Font label = new Font(Font.HELVETICA, 10, Font.BOLD);
         Font value = new Font(Font.HELVETICA, 10);
         Font highlight = new Font(Font.HELVETICA, 11, Font.BOLD);
@@ -584,10 +586,10 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             discountSummary.addCell(titleCell);
 
             discountSummary.addCell(totalsLabel("Original Subtotal", value));
-            discountSummary.addCell(totalsValue(formatMoney(subtotalBeforeDiscounts), value));
+            discountSummary.addCell(totalsValue(formatMoney(subtotalBeforeDiscounts, currency), value));
 
             discountSummary.addCell(totalsLabel("Total Discounts", value));
-            discountSummary.addCell(totalsValue("-" + formatMoney(invoice.getTotalDiscount()), value));
+            discountSummary.addCell(totalsValue("-" + formatMoney(invoice.getTotalDiscount(), currency), value));
 
             document.add(discountSummary);
         }
@@ -599,7 +601,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         totals.setWidths(new float[] { 1.5f, 1f });
 
         totals.addCell(totalsLabel("Grand Total", highlight));
-        totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount()), highlight));
+        totals.addCell(totalsValue(formatMoney(invoice.getTotalAmount(), currency), highlight));
 
         document.add(totals);
     }
@@ -666,8 +668,9 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         return cell;
     }
 
-    private String formatMoney(Double v) {
-        return v == null ? "0.00" : String.format("%.2f", v);
+    private String formatMoney(Double v, String currency) {
+        String amount = v == null ? "0.00" : String.format("%.2f", v);
+        return (currency != null && !currency.isBlank()) ? currency + " " + amount : amount;
     }
 
     private String safe(String v) {

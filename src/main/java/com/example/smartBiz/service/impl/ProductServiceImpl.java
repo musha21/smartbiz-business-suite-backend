@@ -159,7 +159,7 @@ public class ProductServiceImpl implements ProductService {
 
         Products saved = productRepo.save(product);
 
-        Long nextVal = sequenceService.getNextValue(businessId, "PRODUCT_SKU");
+        Long nextVal = sequenceService.getNextValue(businessId, "PRODUCT_SKU", 0);
         String catName = saved.getCategory() != null ? saved.getCategory().getName() : "NA";
         String sku = generateSku(business.getName(), catName, nextVal);
 

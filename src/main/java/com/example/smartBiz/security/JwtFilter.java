@@ -34,7 +34,10 @@ public class JwtFilter extends OncePerRequestFilter {
             "/v1/api/payments/notify",
             "/v1/api/payments/status",
             "/v1/api/plans/active",
-            "/v1/api/public/testimonials",
+
+            // FIXED
+            "/v1/api/public",
+
             "/v1/api/partner-logos",
             "/swagger-ui",
             "/v3/api-docs"

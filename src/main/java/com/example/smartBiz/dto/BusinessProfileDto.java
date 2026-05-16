@@ -1,7 +1,5 @@
 package com.example.smartBiz.dto;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Lob;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,13 +10,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class BusinessProfileDto {
+    private Long id;
     private String businessName;
     private String ownerName;
-
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
     private String logo;
-
     private String email;
     private String phone;
     private String address;

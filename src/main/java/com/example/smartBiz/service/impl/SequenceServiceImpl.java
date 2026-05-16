@@ -17,18 +17,20 @@ public class SequenceServiceImpl implements SequenceService {
 
     @Override
     @Transactional
-    public Long getNextValue(Long businessId, String sequenceType) {
-        BusinessSequence sequence = sequenceRepo.findByBusinessIdAndSequenceType(businessId, sequenceType)
+    public Long getNextValue(Long businessId, String sequenceType, int fiscalYear) {
+        BusinessSequence sequence = sequenceRepo
+                .findByBusinessIdAndSequenceTypeAndFiscalYearForUpdate(businessId, sequenceType, fiscalYear)
                 .orElseGet(() -> BusinessSequence.builder()
                         .businessId(businessId)
                         .sequenceType(sequenceType)
+                        .fiscalYear(fiscalYear)
                         .lastValue(0L)
                         .build());
 
         Long nextValue = sequence.getLastValue() + 1;
         sequence.setLastValue(nextValue);
         sequenceRepo.save(sequence);
-        
+
         return nextValue;
     }
 }
