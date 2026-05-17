@@ -1,6 +1,7 @@
 package com.example.smartBiz.service.impl;
 
 import com.example.smartBiz.dto.SupplierDto;
+import com.example.smartBiz.dto.SupplierExtendedDto;
 import com.example.smartBiz.entity.Supplier;
 import com.example.smartBiz.exception.ResourceNotFoundException;
 import com.example.smartBiz.repository.SupplierRepo;
@@ -128,5 +129,90 @@ public class SupplierServiceImpl implements SupplierService {
                 .stream()
                 .map(this::mapToDto)
                 .toList();
+    }
+
+    // Extended methods for procurement
+
+    @Override
+    public SupplierExtendedDto createSupplierExtended(SupplierExtendedDto dto) {
+        Long businessId = requireBusinessId();
+
+        Supplier supplier = mapExtendedToEntity(dto);
+        supplier.setBusinessId(businessId);
+
+        return mapExtendedToDto(supplierRepository.save(supplier));
+    }
+
+    @Override
+    public SupplierExtendedDto updateSupplierExtended(Long id, SupplierExtendedDto dto) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+
+        supplier.setName(dto.getName());
+        supplier.setEmail(dto.getEmail());
+        supplier.setPhone(dto.getPhone());
+        supplier.setAddress(dto.getAddress());
+        supplier.setPaymentTerms(dto.getPaymentTerms());
+        supplier.setLeadTimeDays(dto.getLeadTimeDays());
+        supplier.setMoq(dto.getMoq());
+        supplier.setTaxId(dto.getTaxId());
+        supplier.setBankAccount(dto.getBankAccount());
+        supplier.setCurrency(dto.getCurrency());
+        supplier.setNotes(dto.getNotes());
+
+        return mapExtendedToDto(supplierRepository.save(supplier));
+    }
+
+    @Override
+    public SupplierExtendedDto getSupplierExtendedById(Long id) {
+        Long businessId = requireBusinessId();
+        Supplier supplier = requireOwnedSupplier(id, businessId);
+        return mapExtendedToDto(supplier);
+    }
+
+    @Override
+    public List<SupplierExtendedDto> getAllSuppliersExtended() {
+        Long businessId = requireBusinessId();
+
+        return supplierRepository.findByBusinessIdAndArchivedFalse(businessId)
+                .stream()
+                .map(this::mapExtendedToDto)
+                .toList();
+    }
+
+    private Supplier mapExtendedToEntity(SupplierExtendedDto dto) {
+        Supplier supplier = new Supplier();
+        supplier.setName(dto.getName());
+        supplier.setEmail(dto.getEmail());
+        supplier.setPhone(dto.getPhone());
+        supplier.setAddress(dto.getAddress());
+        supplier.setPaymentTerms(dto.getPaymentTerms());
+        supplier.setLeadTimeDays(dto.getLeadTimeDays());
+        supplier.setMoq(dto.getMoq());
+        supplier.setTaxId(dto.getTaxId());
+        supplier.setBankAccount(dto.getBankAccount());
+        supplier.setCurrency(dto.getCurrency());
+        supplier.setNotes(dto.getNotes());
+        return supplier;
+    }
+
+    private SupplierExtendedDto mapExtendedToDto(Supplier supplier) {
+        return SupplierExtendedDto.builder()
+                .id(supplier.getId())
+                .name(supplier.getName())
+                .email(supplier.getEmail())
+                .phone(supplier.getPhone())
+                .address(supplier.getAddress())
+                .archived(supplier.getArchived())
+                .paymentTerms(supplier.getPaymentTerms())
+                .leadTimeDays(supplier.getLeadTimeDays())
+                .moq(supplier.getMoq())
+                .reliabilityScore(supplier.getReliabilityScore())
+                .lateDeliveryCount(supplier.getLateDeliveryCount())
+                .taxId(supplier.getTaxId())
+                .bankAccount(supplier.getBankAccount())
+                .currency(supplier.getCurrency())
+                .notes(supplier.getNotes())
+                .build();
     }
 }

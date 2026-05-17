@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Data
 @Entity
+@Builder
 @Table(name = "product_batches", uniqueConstraints = {
                 @UniqueConstraint(name = "uk_batch_per_business_product", columnNames = { "business_id", "product_id",
                                 "batch_number" })

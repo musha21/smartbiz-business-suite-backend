@@ -41,4 +41,7 @@ public interface ProductRepo extends JpaRepository<Products, Long> {
 
         @Query("SELECT COUNT(p) FROM Products p WHERE p.deletedAt IS NULL")
         long countAllActive();
+
+        // For reorder alert processing - all active products by business
+        List<Products> findAllByBusinessId(Long businessId);
 }

@@ -57,4 +57,18 @@ public interface InvoiceItemRepo extends JpaRepository<InvoiceItem, Long> {
       @Param("end") LocalDateTime end,
       @Param("businessId") Long businessId,
       Pageable pageable);
+
+  @Query("""
+          SELECT ii FROM InvoiceItem ii
+          JOIN ii.invoice inv
+          WHERE ii.product.id = :productId
+            AND inv.businessId = :businessId
+            AND inv.status = com.example.smartBiz.enums.InvoiceStatus.PAID
+            AND inv.archived = false
+            AND inv.invoiceDate >= :since
+          """)
+  List<InvoiceItem> findRecentSalesByProduct(
+      @Param("productId") Long productId,
+      @Param("businessId") Long businessId,
+      @Param("since") LocalDateTime since);
 }

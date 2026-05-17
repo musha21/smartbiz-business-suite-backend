@@ -1,6 +1,7 @@
 package com.example.smartBiz.controller;
 
 import com.example.smartBiz.dto.SupplierDto;
+import com.example.smartBiz.dto.SupplierExtendedDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -85,5 +86,42 @@ public class SupplierController {
     @GetMapping
     public ResponseEntity<List<SupplierDto>> getAllSuppliers() {
         return ResponseEntity.ok(supplierService.getAllSuppliers());
+    }
+
+    // Extended endpoints for procurement
+
+    @Operation(summary = "Create a supplier with extended procurement fields")
+    @ApiResponse(responseCode = "201", description = "Supplier created")
+    @PostMapping("/extended")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<SupplierExtendedDto> createSupplierExtended(
+            @RequestBody SupplierExtendedDto supplierDto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(supplierService.createSupplierExtended(supplierDto));
+    }
+
+    @Operation(summary = "Update a supplier with extended procurement fields")
+    @ApiResponse(responseCode = "200", description = "Supplier updated")
+    @PutMapping("/extended/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'OWNER')")
+    public ResponseEntity<SupplierExtendedDto> updateSupplierExtended(
+            @Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id,
+            @RequestBody SupplierExtendedDto supplierDto) {
+        return ResponseEntity.ok(supplierService.updateSupplierExtended(id, supplierDto));
+    }
+
+    @Operation(summary = "Get supplier by ID with extended fields")
+    @ApiResponse(responseCode = "200", description = "Supplier returned")
+    @GetMapping("/extended/{id}")
+    public ResponseEntity<SupplierExtendedDto> getSupplierExtendedById(
+            @Parameter(description = "Supplier ID") @PathVariable(name = "id") Long id) {
+        return ResponseEntity.ok(supplierService.getSupplierExtendedById(id));
+    }
+
+    @Operation(summary = "List all active suppliers with extended fields")
+    @ApiResponse(responseCode = "200", description = "Suppliers returned")
+    @GetMapping("/extended")
+    public ResponseEntity<List<SupplierExtendedDto>> getAllSuppliersExtended() {
+        return ResponseEntity.ok(supplierService.getAllSuppliersExtended());
     }
 }
