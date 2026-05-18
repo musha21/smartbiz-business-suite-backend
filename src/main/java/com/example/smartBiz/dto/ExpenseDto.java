@@ -15,4 +15,5 @@ public class ExpenseDto {
     private String category;
     private Double amount;
     private String note;
+    private Long cashRegisterSessionId; // optional, links to cash register session
 }

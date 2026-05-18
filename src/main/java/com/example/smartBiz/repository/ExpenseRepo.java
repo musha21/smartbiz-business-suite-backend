@@ -15,6 +15,17 @@ public interface ExpenseRepo extends JpaRepository<Expense, Long> {
 
   long countByBusinessId(Long businessId);
 
+  // ✅ List expenses for a cash register session
+  List<Expense> findByCashRegisterSessionId(Long cashRegisterSessionId);
+
+  // ✅ Sum expenses for a cash register session
+  @Query("""
+          SELECT COALESCE(SUM(e.amount), 0)
+          FROM Expense e
+          WHERE e.cashRegisterSessionId = :sessionId
+      """)
+  Double sumExpensesByCashRegisterSessionId(@Param("sessionId") Long sessionId);
+
   // ✅ Sum expenses for a business between dates
   @Query("""
           SELECT COALESCE(SUM(e.amount), 0)

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/api/expenses")
@@ -57,5 +58,19 @@ public class ExpenseController {
     @GetMapping
     public ResponseEntity<List<ExpenseDto>> getAllExpenses() {
         return ResponseEntity.ok(expenseService.getAllExpenses());
+    }
+
+    @Operation(summary = "Get expense statistics")
+    @ApiResponse(responseCode = "200", description = "Statistics returned")
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getExpenseStats() {
+        return ResponseEntity.ok(expenseService.getExpenseStats());
+    }
+
+    @Operation(summary = "Get expenses by cash register session ID")
+    @ApiResponse(responseCode = "200", description = "Expenses returned for the session")
+    @GetMapping("/session/{sessionId}")
+    public ResponseEntity<List<ExpenseDto>> getExpensesBySessionId(@PathVariable Long sessionId) {
+        return ResponseEntity.ok(expenseService.getExpensesByCashRegisterSessionId(sessionId));
     }
 }

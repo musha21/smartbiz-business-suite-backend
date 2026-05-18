@@ -26,4 +26,7 @@ public class Expense {
     // optional description
     @Column(nullable = false)
     private Long businessId;
+
+    @Column(name = "cash_register_session_id")
+    private Long cashRegisterSessionId;
 }

@@ -9,7 +9,9 @@ import com.example.smartBiz.service.ExpenseService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ExpenseServiceImpl implements ExpenseService {
@@ -50,6 +52,11 @@ public class ExpenseServiceImpl implements ExpenseService {
         expense.setAmount(dto.getAmount());
         expense.setNote(dto.getNote());
         expense.setBusinessId(businessId);
+        
+        // ✅ Link to cash register session if provided
+        if (dto.getCashRegisterSessionId() != null) {
+            expense.setCashRegisterSessionId(dto.getCashRegisterSessionId());
+        }
 
         return toDto(expenseRepository.save(expense));
     }
@@ -99,6 +106,38 @@ public class ExpenseServiceImpl implements ExpenseService {
         dto.setCategory(e.getCategory());
         dto.setAmount(e.getAmount());
         dto.setNote(e.getNote());
+        dto.setCashRegisterSessionId(e.getCashRegisterSessionId());
         return dto;
+    }
+
+    @Override
+    public List<ExpenseDto> getExpensesByCashRegisterSessionId(Long sessionId) {
+        requireBusinessId(); // verify auth
+        return expenseRepository.findByCashRegisterSessionId(sessionId).stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    @Override
+    public Map<String, Object> getExpenseStats() {
+        Long businessId = requireBusinessId();
+        List<Expense> expenses = expenseRepository.findByBusinessId(businessId);
+
+        double totalAmount = expenses.stream()
+                .mapToDouble(e -> e.getAmount().doubleValue())
+                .sum();
+
+        Map<String, Long> byCategory = expenses.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        Expense::getCategory,
+                        java.util.stream.Collectors.counting()
+                ));
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalCount", expenses.size());
+        stats.put("totalAmount", totalAmount);
+        stats.put("byCategory", byCategory);
+
+        return stats;
     }
 }

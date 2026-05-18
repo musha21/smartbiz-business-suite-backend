@@ -3,6 +3,7 @@ package com.example.smartBiz.service;
 import com.example.smartBiz.dto.ExpenseDto;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ExpenseService {
 
@@ -15,4 +16,8 @@ public interface ExpenseService {
     ExpenseDto getExpenseById(Long id);
 
     List<ExpenseDto> getAllExpenses();
+
+    Map<String, Object> getExpenseStats();
+
+    List<ExpenseDto> getExpensesByCashRegisterSessionId(Long sessionId);
 }
